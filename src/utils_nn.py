@@ -62,4 +62,4 @@ class SampleNN(nn.Module):
 
 def test_function():
     """Test function"""
-    print("Hello World from `src/utils_har.py`")
+    print("Hello World from `src/utils_nn.py`")
