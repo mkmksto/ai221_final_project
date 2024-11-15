@@ -6,6 +6,8 @@ This project uses a subset of the dataset provided by the [Philippine Medicinal 
 
 In order to reduce the size of the dataset, the images were resized to 500x500 and converted to the webp format, see `src/utils_image_conversion.py` for the conversion script. The converted dataset is stored in the `data/ph_med_plants_reduced_sizes` folder.
 
+This reduces the size of the dataset to around 30MB from 8GB.
+
 ## Introduction
 
 We train various Machine Learning models (mostly classical ML models, and simple MLPs) to classify the images into their corresponding classes.  
