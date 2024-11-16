@@ -46,9 +46,8 @@ def process_image_folder(
         if file_path.is_file() and file_path.suffix.lower() in valid_extensions:
             # Create corresponding output path
             rel_path = file_path.relative_to(input_path)
-            print(f"rel_path: {rel_path}")
             output_file = output_path / rel_path.parent / f"{rel_path.stem}.webp"
-            print(f"output_file: {output_file}")
+
             # Create output subdirectories if needed
             output_file.parent.mkdir(parents=True, exist_ok=True)
 
@@ -86,16 +85,15 @@ if __name__ == "__main__":
     ARACHIS_PROCESSED_FOLDER = PROCESSED_DATA_FOLDER / "35Arachis hypogaea(AH)"
 
     # Process Impatiens folder
-    process_image_folder(IMPATIENS_RAW_FOLDER, IMPATIENS_PROCESSED_FOLDER)
+    process_image_folder(ARACHIS_RAW_FOLDER, ARACHIS_PROCESSED_FOLDER)
 
     # Print image counts
     raw_count = (
-        len(list(IMPATIENS_RAW_FOLDER.glob("*.[jJ][pP][gG]")))
-        + len(list(IMPATIENS_RAW_FOLDER.glob("*.[jJ][pP][eE][gG]")))
-        + len(list(IMPATIENS_RAW_FOLDER.glob("*.webp")))
-        + len(list(IMPATIENS_RAW_FOLDER.glob("*.[pP][nN][gG]")))
+        len(list(ARACHIS_RAW_FOLDER.glob("*.[jJ][pP][gG]")))
+        + len(list(ARACHIS_RAW_FOLDER.glob("*.[jJ][pP][eE][gG]")))
+        + len(list(ARACHIS_RAW_FOLDER.glob("*.webp")))
+        + len(list(ARACHIS_RAW_FOLDER.glob("*.[pP][nN][gG]")))
     )
-    processed_count = len(list(IMPATIENS_PROCESSED_FOLDER.glob("*.webp")))
-    print(f"Impatiens raw images: {raw_count}")
-    print(f"Impatiens processed images: {processed_count}")
-    # process_image_folder(ARACHIS_RAW_FOLDER, ARACHIS_PROCESSED_FOLDER)
+    processed_count = len(list(ARACHIS_PROCESSED_FOLDER.glob("*.webp")))
+    print(f"Arachis raw images: {raw_count}")
+    print(f"Arachis processed images: {processed_count}")
