@@ -149,7 +149,7 @@ Especially important for classical ML:
 
 - Edge detection (already implemented using Canny)
 - HOG (Histogram of Oriented Gradients) - great for leaf shape analysis
-- Color histograms (RGB/HSV) - useful for leaf color variations
+- Gabor features - for texture analysis
 - GLCM (Gray Level Co-occurrence Matrix) - for texture analysis
 - SIFT/SURF features - for distinctive leaf patterns
 
