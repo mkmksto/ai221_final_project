@@ -15,8 +15,12 @@ RAW_DATA_FOLDER = DATA_FOLDER / "Philippine Medicinal Plant Leaf Dataset(raw)"
 PROCESSED_DATA_FOLDER = DATA_FOLDER / "ph_med_plants_reduced_sizes"
 
 # Sample class / folder for testing
-HIBISCUS_FOLDER = RAW_DATA_FOLDER / "1Hibiscus rosa-sinensis(HRS)"
-CARMONA_RETUSA_FOLDER = RAW_DATA_FOLDER / "16Carmona retusa(CR)"
+HIBISCUS_RAW_FOLDER = RAW_DATA_FOLDER / "1Hibiscus rosa-sinensis(HRS)"
+CARMONA_RETUSA_RAW_FOLDER = RAW_DATA_FOLDER / "16Carmona retusa(CR)"
+
+HIBISCUS_PROCESSED_FOLDER = PROCESSED_DATA_FOLDER / "1Hibiscus rosa-sinensis(HRS)"
+CARMONA_RETUSA_PROCESSED_FOLDER = PROCESSED_DATA_FOLDER / "16Carmona retusa(CR)"
+AVERRHOEA_BILIMBI_PROCESSED_FOLDER = PROCESSED_DATA_FOLDER / "26Averrhoea bilimbi(AVB)"
 
 
 def process_image_folder(
