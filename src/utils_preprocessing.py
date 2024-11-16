@@ -1,4 +1,8 @@
-"""Utilities for preprocessing the images for better model performance."""
+"""
+Utilities for preprocessing the images for better model performance.
+
+Also includes some basic augmentation techniques.
+"""
 
 import cv2
 import matplotlib.pyplot as plt
@@ -59,3 +63,14 @@ def detect_edges_and_lines(image: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
     plt.show()
 
     return edges, line_image
+
+
+# Flipping
+
+# Rotation
+
+# Cropping
+
+# Color Manipulations (Brightness, Contrast, Saturation, Hue)
+
+# Normalization
