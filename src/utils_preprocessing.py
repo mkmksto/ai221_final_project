@@ -7,6 +7,7 @@ Also includes some feature extraction methods.
 import cv2
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
 from skimage.feature import graycomatrix, graycoprops
 
 from .utils_data import RAW_DATA_DF
@@ -162,12 +163,7 @@ def visualize_glcm(image: np.ndarray, distance: int = 1, angle: float = 0) -> No
 
 
 def preprocess_leaf_image(image: np.ndarray) -> np.ndarray:
-    """Preprocess leaf image by:
-    1. Converting to appropriate color space
-    2. Removing background/segmenting leaf
-    3. Reducing noise
-    4. Enhancing contrast
-    5. Normalizing
+    """Preprocess leaf image with basic enhancements.
 
     Args:
         image: Input image as numpy array
@@ -175,36 +171,32 @@ def preprocess_leaf_image(image: np.ndarray) -> np.ndarray:
     Returns:
         Preprocessed image as numpy array
     """
-    # 1. Convert to LAB color space for better segmentation
-    lab_image = cv2.cvtColor(image, cv2.COLOR_BGR2LAB)
 
-    # 2. Segment leaf using Otsu's thresholding on A channel
-    _, mask = cv2.threshold(
-        lab_image[:, :, 1], 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU
-    )
-    mask = mask.astype(np.uint8)
+    # Convert BGR to RGB if needed
+    if len(image.shape) == 3:
+        image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
 
-    # Clean up mask with morphological operations
-    kernel = np.ones((5, 5), np.uint8)
-    mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel)
-    mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel)
+    # Apply contrast enhancement using CLAHE
+    if len(image.shape) == 3:
+        # Apply CLAHE to L channel in LAB color space
+        lab = cv2.cvtColor(image, cv2.COLOR_RGB2LAB)
+        l, a, b = cv2.split(lab)
+        clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
+        l = clahe.apply(l)
+        lab = cv2.merge((l, a, b))
+        image = cv2.cvtColor(lab, cv2.COLOR_LAB2RGB)
+    else:
+        # Apply CLAHE directly to grayscale
+        clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
+        image = clahe.apply(image)
 
-    # Apply mask to original image
-    segmented = cv2.bitwise_and(image, image, mask=mask)
+    # Reduce noise while preserving edges
+    image = cv2.bilateralFilter(image, d=9, sigmaColor=75, sigmaSpace=75)
 
-    # 3. Reduce noise with bilateral filter
-    denoised = cv2.bilateralFilter(segmented, d=9, sigmaColor=75, sigmaSpace=75)
+    # Normalize pixel values to [0,255] range
+    image = cv2.normalize(image, None, 0, 255, cv2.NORM_MINMAX, dtype=cv2.CV_8U)
 
-    # 4. Enhance contrast with CLAHE
-    lab_enhanced = cv2.cvtColor(denoised, cv2.COLOR_BGR2LAB)
-    clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
-    lab_enhanced[:, :, 0] = clahe.apply(lab_enhanced[:, :, 0])
-    enhanced = cv2.cvtColor(lab_enhanced, cv2.COLOR_LAB2BGR)
-
-    # 5. Normalize to [0,1] range
-    normalized = enhanced.astype(np.float32) / 255.0
-
-    return normalized
+    return image
 
 
 def extract_shape_features(image: np.ndarray) -> dict[str, float]:
