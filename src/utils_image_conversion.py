@@ -4,23 +4,14 @@ into more manageable sizes.
 This also includes conversion to the webp for even more compression.
 """
 
-import shutil
 from pathlib import Path
 from typing import Union
 
 from PIL import Image
 
-DATA_FOLDER = Path(__file__).parent.parent / "data"
-RAW_DATA_FOLDER = DATA_FOLDER / "Philippine Medicinal Plant Leaf Dataset(raw)"
-PROCESSED_DATA_FOLDER = DATA_FOLDER / "ph_med_plants_reduced_sizes"
+from utils_data import PROCESSED_DATA_FOLDER, RAW_DATA_FOLDER
 
 # Sample class / folder for testing
-HIBISCUS_RAW_FOLDER = RAW_DATA_FOLDER / "1Hibiscus rosa-sinensis(HRS)"
-CARMONA_RETUSA_RAW_FOLDER = RAW_DATA_FOLDER / "16Carmona retusa(CR)"
-
-HIBISCUS_PROCESSED_FOLDER = PROCESSED_DATA_FOLDER / "1Hibiscus rosa-sinensis(HRS)"
-CARMONA_RETUSA_PROCESSED_FOLDER = PROCESSED_DATA_FOLDER / "16Carmona retusa(CR)"
-AVERRHOEA_BILIMBI_PROCESSED_FOLDER = PROCESSED_DATA_FOLDER / "26Averrhoea bilimbi(AVB)"
 
 
 def process_image_folder(
@@ -84,16 +75,18 @@ if __name__ == "__main__":
     ARACHIS_RAW_FOLDER = RAW_DATA_FOLDER / "35Arachis hypogaea(AH)"
     ARACHIS_PROCESSED_FOLDER = PROCESSED_DATA_FOLDER / "35Arachis hypogaea(AH)"
 
-    # Process Impatiens folder
-    process_image_folder(ARACHIS_RAW_FOLDER, ARACHIS_PROCESSED_FOLDER)
+    print(IMPATIENS_RAW_FOLDER)
 
-    # Print image counts
-    raw_count = (
-        len(list(ARACHIS_RAW_FOLDER.glob("*.[jJ][pP][gG]")))
-        + len(list(ARACHIS_RAW_FOLDER.glob("*.[jJ][pP][eE][gG]")))
-        + len(list(ARACHIS_RAW_FOLDER.glob("*.webp")))
-        + len(list(ARACHIS_RAW_FOLDER.glob("*.[pP][nN][gG]")))
-    )
-    processed_count = len(list(ARACHIS_PROCESSED_FOLDER.glob("*.webp")))
-    print(f"Arachis raw images: {raw_count}")
-    print(f"Arachis processed images: {processed_count}")
+    # # Process Impatiens folder
+    # process_image_folder(ARACHIS_RAW_FOLDER, ARACHIS_PROCESSED_FOLDER)
+
+    # # Print image counts
+    # raw_count = (
+    #     len(list(ARACHIS_RAW_FOLDER.glob("*.[jJ][pP][gG]")))
+    #     + len(list(ARACHIS_RAW_FOLDER.glob("*.[jJ][pP][eE][gG]")))
+    #     + len(list(ARACHIS_RAW_FOLDER.glob("*.webp")))
+    #     + len(list(ARACHIS_RAW_FOLDER.glob("*.[pP][nN][gG]")))
+    # )
+    # processed_count = len(list(ARACHIS_PROCESSED_FOLDER.glob("*.webp")))
+    # print(f"Arachis raw images: {raw_count}")
+    # print(f"Arachis processed images: {processed_count}")

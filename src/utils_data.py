@@ -1,9 +1,23 @@
 """Utilities for data handling and EDA."""
 
 import random
+from pathlib import Path
 
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
+
+DATA_FOLDER = Path(__file__).parent.parent / "data"
+RAW_DATA_FOLDER = DATA_FOLDER / "Philippine Medicinal Plant Leaf Dataset(raw)"
+PROCESSED_DATA_FOLDER = DATA_FOLDER / "ph_med_plants_reduced_sizes"
+
+HIBISCUS_RAW_FOLDER = RAW_DATA_FOLDER / "1Hibiscus rosa-sinensis(HRS)"
+CARMONA_RETUSA_RAW_FOLDER = RAW_DATA_FOLDER / "16Carmona retusa(CR)"
+
+HIBISCUS_PROCESSED_FOLDER = PROCESSED_DATA_FOLDER / "1Hibiscus rosa-sinensis(HRS)"
+CARMONA_RETUSA_PROCESSED_FOLDER = PROCESSED_DATA_FOLDER / "16Carmona retusa(CR)"
+AVERRHOEA_BILIMBI_PROCESSED_FOLDER = PROCESSED_DATA_FOLDER / "26Averrhoea bilimbi(AVB)"
+
 
 LIST_OF_FOLDER_CLASSES = [
     "1Hibiscus rosa-sinensis(HRS)",
@@ -91,6 +105,20 @@ PLANT_CLASS_DICT: dict[int, str] = {
     39: "Manihot esculenta",
     40: "Citrus maxima",
 }
+
+
+class_folders = [
+    PROCESSED_DATA_FOLDER / folder_class for folder_class in LIST_OF_FOLDER_CLASSES
+]
+
+# per row: class_folder, class_name, class_number
+RAW_DATA_DF = pd.DataFrame(
+    {
+        "class_folder": class_folders,
+        "class_name": LIST_OF_FOLDER_CLASSES,
+        "class_number": range(1, len(LIST_OF_FOLDER_CLASSES) + 1),
+    }
+)
 
 
 def plot_random_images_grid(class_folders: list) -> None:
