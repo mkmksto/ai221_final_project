@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from skimage.feature import graycomatrix, graycoprops
 
-from utils_data import RAW_DATA_DF
+from .utils_data import RAW_DATA_DF
 
 
 def detect_edges_and_lines(image: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
@@ -278,5 +278,6 @@ def create_feature_dataset(data_df: pd.DataFrame) -> pd.DataFrame:
 
 
 if __name__ == "__main__":
+
     print("Hello World from `utils_preprocessing.py`")
     print(RAW_DATA_DF.head(5))

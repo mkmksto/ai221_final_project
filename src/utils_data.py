@@ -1,5 +1,6 @@
 """Utilities for data handling and EDA."""
 
+import pathlib
 import random
 from pathlib import Path
 
@@ -121,7 +122,7 @@ RAW_DATA_DF = pd.DataFrame(
 )
 
 
-def plot_random_images_grid(class_folders_list: list) -> None:
+def plot_random_raw_images_grid(class_folders_list: list) -> None:
     """Plot one random image from each class in a grid layout.
 
     Args:
@@ -153,7 +154,7 @@ def plot_random_images_grid(class_folders_list: list) -> None:
     plt.show()
 
 
-def get_random_images_from_each_class(class_folders_list: list) -> list:
+def get_random_images_from_each_class(class_folders_list: list) -> list[pathlib.Path]:
     """Get one random image from each class.
 
     Args:
