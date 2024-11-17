@@ -4,6 +4,7 @@ from pathlib import Path
 
 import matplotlib.pyplot as plt
 import numpy as np
+from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay, classification_report, roc_curve, roc_auc_score, accuracy_score
 
 
 def plot_5x8_grid(processed_images: list[np.ndarray]) -> None:
@@ -91,3 +92,20 @@ def plot_images_with_features(
 
         plt.tight_layout()
         plt.show()
+
+
+def create_classification_report(y_test, y_pred, target_names, title):
+    # print classification report
+    print(classification_report(y_test, y_pred, target_names=target_names))
+
+    cfm = confusion_matrix(y_test, y_pred)
+    cm_display = ConfusionMatrixDisplay(confusion_matrix = cfm, display_labels = target_names)
+
+    plt.figure(figsize=(20, 20))  # Adjust the size as needed
+    cm_display.plot(cmap='viridis', ax=plt.gca())
+    plt.xticks(rotation=45, ha='right', fontsize=10)  # Rotate and adjust font size for readability
+    plt.yticks(fontsize=10)  # Adjust font size for readability
+    plt.title(f"{title}: Confusion Matrix", fontsize=14, y=1.05)
+    plt.xlabel("Predicted label", fontsize=12)
+    plt.ylabel("True label", fontsize=12)
+    plt.show()
