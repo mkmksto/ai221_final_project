@@ -48,6 +48,50 @@ LIST_OF_FOLDER_CLASSES = [
     "40Citrus maxima(CMA)",
 ]
 
+# Dictionary mapping class numbers to class names
+PLANT_CLASS_DICT: dict[int, str] = {
+    1: "Hibiscus rosa-sinensis",
+    2: "Psidium guajava",
+    3: "Antidesma bunius",
+    4: "Vitex negundo",
+    5: "Moringa oleifera",
+    6: "Blumea balsamifera",
+    7: "Origanum vulgare",
+    8: "Pepromia pellucida",
+    9: "Centella asiatica",
+    10: "Coleus scutellarioides",
+    11: "Phyllanthus niruri",
+    12: "Corchorus olitorius",
+    13: "Momordica charantia",
+    14: "Euphorbia hirta",
+    15: "Curcuma longa",
+    16: "Carmona retusa",
+    17: "Senna alata",
+    18: "Mentha cordifolia Opiz",
+    19: "Capsicum frutescens",
+    20: "Jatropha curcas",
+    21: "Ocimum basilicum",
+    22: "Nerium oleander",
+    23: "Pandanus amaryllifolius",
+    24: "Aloe barbadensis Miller",
+    25: "Lagerstroemia speciosa",
+    26: "Averrhoea bilimbi",
+    27: "Annona muricata",
+    28: "Citrus aurantiifolia",
+    29: "Premna odorata",
+    30: "Gliricidia sepium",
+    31: "Citrus sinensis",
+    32: "Mangifera indica",
+    33: "Citrus microcarpa",
+    34: "Impatiens balsamina",
+    35: "Arachis hypogaea",
+    36: "Tamarindus indica",
+    37: "Leucaena leucocephala",
+    38: "Ipomoea batatas",
+    39: "Manihot esculenta",
+    40: "Citrus maxima",
+}
+
 
 def plot_random_images_grid(class_folders: list) -> None:
     """Plot one random image from each class in a grid layout.
