@@ -121,7 +121,7 @@ RAW_DATA_DF = pd.DataFrame(
 )
 
 
-def plot_random_images_grid(class_folders: list) -> None:
+def plot_random_images_grid(class_folders_list: list) -> None:
     """Plot one random image from each class in a grid layout.
 
     Args:
@@ -132,7 +132,7 @@ def plot_random_images_grid(class_folders: list) -> None:
     fig, axes = plt.subplots(5, 8, figsize=(15, 8))
 
     # Plot one random image from each class
-    for idx, folder in enumerate(class_folders):
+    for idx, folder in enumerate(class_folders_list):
         row = idx // 8
         col = idx % 8
 
@@ -151,3 +151,22 @@ def plot_random_images_grid(class_folders: list) -> None:
 
     plt.tight_layout()
     plt.show()
+
+
+def get_random_images_from_each_class(class_folders_list: list) -> list:
+    """Get one random image from each class.
+
+    Args:
+        class_folders: List of paths to class folders
+
+    Returns:
+        List of paths to one random image from each class
+    """
+    random_images = []
+    for folder in class_folders_list:
+        # Get list of image files and select one randomly
+        image_files = list(folder.glob("*.webp"))
+        random_image = random.choice(image_files)
+        random_images.append(random_image)
+
+    return random_images
