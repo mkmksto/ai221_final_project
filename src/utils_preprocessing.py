@@ -200,18 +200,78 @@ def preprocess_leaf_image(image: np.ndarray) -> np.ndarray:
 
 
 def extract_shape_features(image: np.ndarray) -> dict[str, float]:
-    """Extract shape features from preprocessed leaf image:
-    - Area
-    - Perimeter
-    - Circularity
-    - Eccentricity
-    - Major/minor axis lengths
-    - Aspect ratio
-    - Form factor
-    - Rectangularity
-    - Narrow factor
+    """Extract shape features from preprocessed leaf image.
+
+    Args:
+        image: Input image as numpy array, either RGB or grayscale
+
+    Returns:
+        Dictionary containing the following shape features:
+            - area: Area of the leaf contour
+            - perimeter: Perimeter length of the leaf contour
+            - circularity: How circular the leaf shape is (4π*area/perimeter²)
+            - eccentricity: Eccentricity of fitted ellipse (0=circle, 1=line)
+            - major_axis_length: Length of major axis of fitted ellipse
+            - minor_axis_length: Length of minor axis of fitted ellipse
+            - aspect_ratio: Ratio of major to minor axis lengths
+            - form_factor: Another circularity measure (4π*area/perimeter²)
+            - rectangularity: How rectangular the leaf is (area/bounding_box_area)
+            - narrow_factor: Width to height ratio of bounding box
     """
-    pass
+    # Convert to binary mask if not already
+    if len(image.shape) == 3:
+        gray = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
+    else:
+        gray = image
+    _, binary = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+
+    # Find contours
+    contours, _ = cv2.findContours(binary, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    if not contours:
+        return {}
+
+    # Get largest contour
+    contour = max(contours, key=cv2.contourArea)
+
+    # Calculate basic measurements
+    area = cv2.contourArea(contour)
+    perimeter = cv2.arcLength(contour, True)
+
+    # Fit ellipse to get major/minor axes
+    if len(contour) >= 5:  # Need at least 5 points to fit ellipse
+        (x, y), (major_axis, minor_axis), angle = cv2.fitEllipse(contour)
+    else:
+        major_axis = minor_axis = 1.0
+
+    # Calculate shape features
+    circularity = (4 * np.pi * area) / (perimeter * perimeter) if perimeter > 0 else 0
+    eccentricity = (
+        np.sqrt(1 - (minor_axis / major_axis) ** 2)
+        if major_axis > 0 and minor_axis <= major_axis
+        else 0
+    )
+    aspect_ratio = major_axis / minor_axis if minor_axis > 0 else 0
+    form_factor = (4 * np.pi * area) / (perimeter * perimeter) if perimeter > 0 else 0
+
+    # Get bounding rectangle
+    x, y, w, h = cv2.boundingRect(contour)
+    rectangularity = area / (w * h) if (w * h) > 0 else 0
+
+    # Narrow factor
+    narrow_factor = w / h if h > 0 else 0
+
+    return {
+        "area": float(area),
+        "perimeter": float(perimeter),
+        "circularity": float(circularity),
+        "eccentricity": float(eccentricity),
+        "major_axis_length": float(major_axis),
+        "minor_axis_length": float(minor_axis),
+        "aspect_ratio": float(aspect_ratio),
+        "form_factor": float(form_factor),
+        "rectangularity": float(rectangularity),
+        "narrow_factor": float(narrow_factor),
+    }
 
 
 def extract_texture_features(image: np.ndarray) -> dict[str, float]:

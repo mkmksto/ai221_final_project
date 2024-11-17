@@ -1,5 +1,7 @@
 """Basic Plotting Utilities"""
 
+from pathlib import Path
+
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -55,3 +57,37 @@ def plot_images_side_by_side(
 
     plt.tight_layout()
     plt.show()
+
+
+def plot_images_with_features(
+    images: list[Path], features: list[dict[str, float]], batch_size: int = 5
+) -> None:
+    """Plot images with their corresponding shape features in a grid.
+
+    Args:
+        images: List of image paths
+        features: List of dictionaries containing shape features for each image
+        batch_size: Number of images to show per figure. Defaults to 5
+    """
+    for batch_idx in range(0, len(images), batch_size):
+        # Create figure with 2 rows
+        fig, axes = plt.subplots(2, batch_size, figsize=(15, 8))
+
+        # Get current batch of images and features
+        batch_images = images[batch_idx : batch_idx + batch_size]
+        batch_features = features[batch_idx : batch_idx + batch_size]
+
+        # Plot images in top row
+        for i, img_path in enumerate(batch_images):
+            axes[0, i].imshow(plt.imread(img_path))
+            axes[0, i].axis("off")
+            axes[0, i].set_title(f"Image {batch_idx + i + 1}")
+
+        # Plot features as text in bottom row
+        for i, feat_dict in enumerate(batch_features):
+            feature_text = "\n".join([f"{k}: {v:.2f}" for k, v in feat_dict.items()])
+            axes[1, i].text(0.1, 0.5, feature_text, fontsize=8, va="center")
+            axes[1, i].axis("off")
+
+        plt.tight_layout()
+        plt.show()
