@@ -87,6 +87,7 @@ env/
 .env
 .env.local
 .python-version
+.venv
 
 # Build directories
 dist/
@@ -100,3 +101,6 @@ out/
 
 # Project specific
 TODOs.md
+
+# Numpy files
+*.npy
