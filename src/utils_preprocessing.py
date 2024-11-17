@@ -8,7 +8,7 @@ import cv2
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-from skimage.feature import graycomatrix, graycoprops
+from skimage.feature import graycomatrix, graycoprops, local_binary_pattern
 
 from .utils_data import RAW_DATA_DF
 
@@ -206,24 +206,23 @@ def extract_shape_features(image: np.ndarray) -> dict[str, float]:
         image: Input image as numpy array, either RGB or grayscale
 
     Returns:
-        Dictionary containing the following shape features:
-            - area: Area of the leaf contour
-            - perimeter: Perimeter length of the leaf contour
-            - circularity: How circular the leaf shape is (4π*area/perimeter²)
-            - eccentricity: Eccentricity of fitted ellipse (0=circle, 1=line)
-            - major_axis_length: Length of major axis of fitted ellipse
-            - minor_axis_length: Length of minor axis of fitted ellipse
-            - aspect_ratio: Ratio of major to minor axis lengths
-            - form_factor: Another circularity measure (4π*area/perimeter²)
-            - rectangularity: How rectangular the leaf is (area/bounding_box_area)
-            - narrow_factor: Width to height ratio of bounding box
+        Dictionary containing shape features
     """
-    # Convert to binary mask if not already
+    # Convert to grayscale if needed
     if len(image.shape) == 3:
         gray = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
     else:
         gray = image
-    _, binary = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+
+    # Improve binary threshold using Otsu's method with additional preprocessing
+    # Apply Gaussian blur to reduce noise
+    blurred = cv2.GaussianBlur(gray, (5, 5), 0)
+    _, binary = cv2.threshold(blurred, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+
+    # Perform morphological operations to clean up the mask
+    kernel = np.ones((3, 3), np.uint8)
+    binary = cv2.morphologyEx(binary, cv2.MORPH_CLOSE, kernel)
+    binary = cv2.morphologyEx(binary, cv2.MORPH_OPEN, kernel)
 
     # Find contours
     contours, _ = cv2.findContours(binary, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
@@ -231,58 +230,104 @@ def extract_shape_features(image: np.ndarray) -> dict[str, float]:
         return {}
 
     # Get largest contour
-    contour = max(contours, key=cv2.contourArea)
+    cnt = max(contours, key=cv2.contourArea)
 
-    # Calculate basic measurements
-    area = cv2.contourArea(contour)
-    perimeter = cv2.arcLength(contour, True)
+    # Basic measurements
+    area = cv2.contourArea(cnt)
+    perimeter = cv2.arcLength(cnt, True)
 
-    # Fit ellipse to get major/minor axes
-    if len(contour) >= 5:  # Need at least 5 points to fit ellipse
-        (x, y), (major_axis, minor_axis), angle = cv2.fitEllipse(contour)
-    else:
-        major_axis = minor_axis = 1.0
+    # Bounding rectangle features
+    x, y, w, h = cv2.boundingRect(cnt)
+    aspect_ratio = float(w) / h if h > 0 else 1.0
 
-    # Calculate shape features
-    circularity = (4 * np.pi * area) / (perimeter * perimeter) if perimeter > 0 else 0
-    eccentricity = (
-        np.sqrt(1 - (minor_axis / major_axis) ** 2)
-        if major_axis > 0 and minor_axis <= major_axis
-        else 0
-    )
-    aspect_ratio = major_axis / minor_axis if minor_axis > 0 else 0
-    form_factor = (4 * np.pi * area) / (perimeter * perimeter) if perimeter > 0 else 0
+    # Minimum area rectangle for better extent calculation
+    rect = cv2.minAreaRect(cnt)
+    rect_area = rect[1][0] * rect[1][1]
+    extent = float(area) / rect_area if rect_area > 0 else 1.0
 
-    # Get bounding rectangle
-    x, y, w, h = cv2.boundingRect(contour)
-    rectangularity = area / (w * h) if (w * h) > 0 else 0
+    # Convex hull features
+    hull = cv2.convexHull(cnt)
+    hull_area = cv2.contourArea(hull)
+    solidity = float(area) / hull_area if hull_area > 0 else 1.0
 
-    # Narrow factor
-    narrow_factor = w / h if h > 0 else 0
+    # Form factor (circularity measure)
+    form_factor = 4 * np.pi * area / (perimeter * perimeter) if perimeter > 0 else 1.0
 
     return {
         "area": float(area),
         "perimeter": float(perimeter),
-        "circularity": float(circularity),
-        "eccentricity": float(eccentricity),
-        "major_axis_length": float(major_axis),
-        "minor_axis_length": float(minor_axis),
-        "aspect_ratio": float(aspect_ratio),
         "form_factor": float(form_factor),
-        "rectangularity": float(rectangularity),
-        "narrow_factor": float(narrow_factor),
+        "aspect_ratio": float(aspect_ratio),
+        "extent": float(extent),
+        "solidity": float(solidity),
     }
 
 
 def extract_texture_features(image: np.ndarray) -> dict[str, float]:
-    """Extract texture features from preprocessed leaf image:
-    - GLCM features (already implemented above)
-    - Local Binary Patterns
-    - Gabor filter responses
-    - Edge density
-    - Roughness metrics
+    """Extract texture features from preprocessed leaf image.
+
+    Args:
+        image: Input image as numpy array, either RGB or grayscale
+
+    Returns:
+        Dictionary containing texture features:
+            - GLCM features (contrast, dissimilarity, homogeneity, energy, correlation)
+            - LBP histogram features
+            - Edge density
+            - Roughness metrics based on gradient magnitudes
     """
-    pass
+    # Convert to grayscale if needed
+    if len(image.shape) == 3:
+        gray = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
+    else:
+        gray = gray = image.copy()
+
+    # Calculate GLCM features
+    distances = [1, 3, 5]
+    angles = [0, np.pi / 4, np.pi / 2, 3 * np.pi / 4]
+    glcm = graycomatrix(
+        gray, distances=distances, angles=angles, symmetric=True, normed=True
+    )
+
+    glcm_features = {}
+    props = ["contrast", "dissimilarity", "homogeneity", "energy", "correlation"]
+    for prop in props:
+        feature = graycoprops(glcm, prop).mean()
+        glcm_features[f"glcm_{prop}"] = float(feature)
+
+    # Calculate LBP features
+    radius = 3
+    n_points = 8 * radius
+    lbp = local_binary_pattern(gray, n_points, radius, method="uniform")
+    hist, _ = np.histogram(
+        lbp.ravel(), bins=np.arange(0, n_points + 3), range=(0, n_points + 2)
+    )
+    hist = hist.astype("float")
+    hist /= hist.sum() + 1e-7
+
+    lbp_features = {f"lbp_hist_{i}": float(v) for i, v in enumerate(hist)}
+
+    # Calculate edge density
+    edges = cv2.Canny(gray, 50, 150)
+    edge_density = float(np.sum(edges > 0) / edges.size)
+
+    # Calculate roughness metrics using gradient magnitudes
+    sobelx = cv2.Sobel(gray, cv2.CV_64F, 1, 0, ksize=3)
+    sobely = cv2.Sobel(gray, cv2.CV_64F, 0, 1, ksize=3)
+    gradient_magnitude = np.sqrt(sobelx**2 + sobely**2)
+    roughness = float(np.mean(gradient_magnitude))
+    roughness_std = float(np.std(gradient_magnitude))
+
+    # Combine all features
+    features = {
+        **glcm_features,
+        **lbp_features,
+        "edge_density": edge_density,
+        "roughness_mean": roughness,
+        "roughness_std": roughness_std,
+    }
+
+    return features
 
 
 def extract_color_features(image: np.ndarray) -> dict[str, float]:
