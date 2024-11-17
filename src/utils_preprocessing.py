@@ -9,6 +9,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 from skimage.feature import graycomatrix, graycoprops
 
+from utils_data import RAW_DATA_DF
+
 
 def detect_edges_and_lines(image: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
     """Detect edges and lines in an image using Canny edge detection and Hough transform.
@@ -157,3 +159,124 @@ def visualize_glcm(image: np.ndarray, distance: int = 1, angle: float = 0) -> No
 
     plt.tight_layout()
     plt.show()
+
+
+def preprocess_leaf_image(image: np.ndarray) -> np.ndarray:
+    """Preprocess leaf image by:
+    1. Converting to appropriate color space
+    2. Removing background/segmenting leaf
+    3. Reducing noise
+    4. Enhancing contrast
+    5. Normalizing
+
+    Args:
+        image: Input image as numpy array
+
+    Returns:
+        Preprocessed image as numpy array
+    """
+    # 1. Convert to LAB color space for better segmentation
+    lab_image = cv2.cvtColor(image, cv2.COLOR_BGR2LAB)
+
+    # 2. Segment leaf using Otsu's thresholding on A channel
+    _, mask = cv2.threshold(
+        lab_image[:, :, 1], 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU
+    )
+    mask = mask.astype(np.uint8)
+
+    # Clean up mask with morphological operations
+    kernel = np.ones((5, 5), np.uint8)
+    mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel)
+    mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel)
+
+    # Apply mask to original image
+    segmented = cv2.bitwise_and(image, image, mask=mask)
+
+    # 3. Reduce noise with bilateral filter
+    denoised = cv2.bilateralFilter(segmented, d=9, sigmaColor=75, sigmaSpace=75)
+
+    # 4. Enhance contrast with CLAHE
+    lab_enhanced = cv2.cvtColor(denoised, cv2.COLOR_BGR2LAB)
+    clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
+    lab_enhanced[:, :, 0] = clahe.apply(lab_enhanced[:, :, 0])
+    enhanced = cv2.cvtColor(lab_enhanced, cv2.COLOR_LAB2BGR)
+
+    # 5. Normalize to [0,1] range
+    normalized = enhanced.astype(np.float32) / 255.0
+
+    return normalized
+
+
+def extract_shape_features(image: np.ndarray) -> dict[str, float]:
+    """Extract shape features from preprocessed leaf image:
+    - Area
+    - Perimeter
+    - Circularity
+    - Eccentricity
+    - Major/minor axis lengths
+    - Aspect ratio
+    - Form factor
+    - Rectangularity
+    - Narrow factor
+    """
+    pass
+
+
+def extract_texture_features(image: np.ndarray) -> dict[str, float]:
+    """Extract texture features from preprocessed leaf image:
+    - GLCM features (already implemented above)
+    - Local Binary Patterns
+    - Gabor filter responses
+    - Edge density
+    - Roughness metrics
+    """
+    pass
+
+
+def extract_color_features(image: np.ndarray) -> dict[str, float]:
+    """Extract color features from original leaf image:
+    - Color moments (mean, std, skewness)
+    - Color histograms
+    - Dominant colors
+    - Color ratios
+    For multiple color spaces (RGB, HSV, Lab)
+    """
+    pass
+
+
+def extract_vein_features(image: np.ndarray) -> dict[str, float]:
+    """Extract vein features from preprocessed leaf image:
+    - Vein density
+    - Vein orientation histogram
+    - Vein branching points
+    - Vein length statistics
+    """
+    pass
+
+
+def extract_all_features(image_path: str) -> dict[str, float]:
+    """Extract all features from a leaf image by:
+    1. Loading image
+    2. Preprocessing
+    3. Extracting all feature types
+    4. Combining into single feature vector
+    """
+    pass
+
+
+def create_feature_dataset(data_df: pd.DataFrame) -> pd.DataFrame:
+    """Create dataset with extracted features for all images:
+    1. Iterate through all image files
+    2. Extract features for each
+    3. Create DataFrame with features and labels
+    Returns DataFrame with columns:
+    - image_filename
+    - all extracted features
+    - class_number (label)
+    """
+    pass
+
+
+if __name__ == "__main__":
+    print("Hello World from `utils_preprocessing.py`")
+    print(RAW_DATA_DF.head(5))
