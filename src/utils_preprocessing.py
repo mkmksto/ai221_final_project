@@ -4,6 +4,10 @@ Utilities for preprocessing the images for better model performance.
 Also includes some feature extraction methods.
 """
 
+import os
+from pathlib import Path
+from typing import Dict, Union
+
 import cv2
 import matplotlib.pyplot as plt
 import networkx as nx
@@ -16,6 +20,7 @@ from skimage.feature import graycomatrix, graycoprops, local_binary_pattern
 from skimage.filters import frangi, gabor
 from skimage.morphology import skeletonize, thin
 from sklearn.cluster import KMeans
+from tqdm import tqdm
 
 from .utils_data import RAW_DATA_DF
 
@@ -206,7 +211,6 @@ def preprocess_leaf_image(image: np.ndarray) -> np.ndarray:
     return image
 
 
-# TODO: not working as expected
 def extract_shape_features(image: np.ndarray) -> dict[str, float]:
     """Extract shape features from preprocessed leaf image.
 
@@ -222,25 +226,33 @@ def extract_shape_features(image: np.ndarray) -> dict[str, float]:
     else:
         gray = image
 
-    # Improve binary threshold using Otsu's method with additional preprocessing
-    # Apply Gaussian blur to reduce noise
+    # Create mask to isolate leaf from background
+    # Use Otsu's method on blurred image for robust thresholding
     blurred = cv2.GaussianBlur(gray, (5, 5), 0)
-    _, binary = cv2.threshold(blurred, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+    _, mask = cv2.threshold(blurred, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
 
-    # Perform morphological operations to clean up the mask
+    # Clean up mask with morphological operations
     kernel = np.ones((3, 3), np.uint8)
-    binary = cv2.morphologyEx(binary, cv2.MORPH_CLOSE, kernel)
-    binary = cv2.morphologyEx(binary, cv2.MORPH_OPEN, kernel)
+    mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel)
+    mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel)
 
-    # Find contours
-    contours, _ = cv2.findContours(binary, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    # Invert mask if background is white
+    if np.mean(gray[mask == 255]) > np.mean(gray[mask == 0]):
+        mask = cv2.bitwise_not(mask)
+
+    # Find contours on the mask
+    contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     if not contours:
         return {}
 
-    # Get largest contour
+    # Get largest contour (the leaf)
     cnt = max(contours, key=cv2.contourArea)
 
-    # Basic measurements
+    # Create a mask with just the leaf
+    leaf_mask = np.zeros_like(mask)
+    cv2.drawContours(leaf_mask, [cnt], -1, 255, -1)
+
+    # Basic measurements on the leaf contour
     area = cv2.contourArea(cnt)
     perimeter = cv2.arcLength(cnt, True)
 
@@ -261,6 +273,20 @@ def extract_shape_features(image: np.ndarray) -> dict[str, float]:
     # Form factor (circularity measure)
     form_factor = 4 * np.pi * area / (perimeter * perimeter) if perimeter > 0 else 1.0
 
+    # Calculate compactness
+    compactness = float(perimeter * perimeter / (4 * np.pi * area)) if area > 0 else 1.0
+
+    # Calculate eccentricity using moments
+    moments = cv2.moments(cnt)
+    if moments["m00"] != 0:
+        mu20 = moments["mu20"] / moments["m00"]
+        mu02 = moments["mu02"] / moments["m00"]
+        mu11 = moments["mu11"] / moments["m00"]
+        temp = np.sqrt((mu20 - mu02) ** 2 + 4 * mu11**2)
+        eccentricity = float(np.sqrt(2 * temp / (mu20 + mu02 + temp)))
+    else:
+        eccentricity = 1.0
+
     return {
         "area": float(area),
         "perimeter": float(perimeter),
@@ -268,6 +294,8 @@ def extract_shape_features(image: np.ndarray) -> dict[str, float]:
         "aspect_ratio": float(aspect_ratio),
         "extent": float(extent),
         "solidity": float(solidity),
+        "compactness": float(compactness),
+        "eccentricity": float(eccentricity),
     }
 
 
@@ -501,27 +529,110 @@ def extract_vein_features(image: np.ndarray) -> dict[str, float]:
     }
 
 
-def extract_all_features(image_path: str) -> dict[str, float]:
-    """Extract all features from a leaf image by:
-    1. Loading image
-    2. Preprocessing
-    3. Extracting all feature types
-    4. Combining into single feature vector
+# def extract_all_features(image_path: str) -> dict[str, float]:
+def extract_all_features(image_path: Path) -> dict[str, float]:
+    """Extract all features from a leaf image.
+
+    This function loads an image, preprocesses it, and extracts all available features
+    including color, texture, shape, and vein features.
+
+    Args:
+        image_path: str
+            Path to the image file
+
+    Returns:
+        dict[str, float]: Combined dictionary containing all features:
+            - Color features (color moments, histograms, dominant colors)
+            - Texture features (GLCM, LBP, edge density, roughness)
+            - Shape features (area, perimeter, form factor, etc.)
+            - Vein features (density, orientation, branching points)
     """
-    pass
+    # Read image
+    image = cv2.imread(image_path.as_posix())
+    if image is None:
+        raise ValueError(f"Could not read image at {image_path}")
+
+    # Preprocess image
+    preprocessed_image = preprocess_leaf_image(image)
+
+    # Extract all feature types
+    color_features = extract_color_features(image)  # Use original image for color
+    texture_features = extract_texture_features(preprocessed_image)
+    shape_features = extract_shape_features(
+        preprocessed_image
+    )  # TODO: verify this actually works
+    vein_features = extract_vein_features(preprocessed_image)
+
+    # Combine all features
+    all_features = {
+        **color_features,
+        **texture_features,
+        **shape_features,
+        **vein_features,
+    }
+
+    return all_features
 
 
 def create_feature_dataset(data_df: pd.DataFrame) -> pd.DataFrame:
-    """Create dataset with extracted features for all images:
-    1. Iterate through all image files
-    2. Extract features for each
-    3. Create DataFrame with features and labels
-    Returns DataFrame with columns:
-    - image_filename
-    - all extracted features
-    - class_number (label)
+    """Create dataset with extracted features for all images.
+
+    This function processes all images in the dataset, extracts features,
+    and creates a DataFrame containing all features and labels.
+
+    Args:
+        data_df: pd.DataFrame
+            DataFrame containing image paths and labels
+            Must have columns: ['image_path', 'class_number']
+
+    Returns:
+        pd.DataFrame: DataFrame containing:
+            - image_filename: str (basename of the image file)
+            - feature columns: float (all extracted features)
+            - class_number: int (label)
+
+    Raises:
+        ValueError: If required columns are missing from data_df
     """
-    pass
+    # Verify required columns exist
+    required_cols = ["image_path", "class_number"]
+    if not all(col in data_df.columns for col in required_cols):
+        raise ValueError(f"data_df must contain columns: {required_cols}")
+
+    # Initialize lists to store results
+    all_features: list[Dict[str, Union[str, float, int]]] = []
+
+    # Process each image with progress bar
+    for _, row in tqdm(
+        data_df.iterrows(), total=len(data_df), desc="Extracting features"
+    ):
+        try:
+            # Extract features
+            features = extract_all_features(row["image_path"])
+
+            # Add image filename and class
+            features["image_filename"] = os.path.basename(row["image_path"])
+            features["class_number"] = row["class_number"]
+
+            all_features.append(features)
+
+        except Exception as e:
+            print(f"Error processing {row['image_path']}: {str(e)}")
+            continue
+
+    # Create DataFrame from all features
+    feature_df = pd.DataFrame(all_features)
+
+    # Ensure consistent column ordering
+    # Move image_filename and class_number to front
+    cols = ["image_filename", "class_number"] + [
+        col
+        for col in feature_df.columns
+        if col not in ["image_filename", "class_number"]
+    ]
+    feature_df = feature_df[cols]
+
+    return feature_df
 
 
 if __name__ == "__main__":
