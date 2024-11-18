@@ -8,16 +8,16 @@ from sklearn.model_selection import train_test_split
 from sklearn.svm import SVC
 
 
-def feature_reduction(X, y, method, n_components, **kwargs):
+def feature_reduction(X, y, method, n_components, n_neighbors=5, **kwargs):
     contain_y = False
 
     # Initialize the reduction technique with its specific parameters
     if method.lower() == 'umap':
         # Initialize UMAP with any passed kwargs
-        reduction_init = umap.UMAP(n_neighbors=kwargs.get('n_neighbors', 15), 
+        reduction_init = umap.UMAP(n_neighbors=n_neighbors, 
                                    n_components=n_components, 
                                    **kwargs)
-        contain_y = True
+        contain_y = False
     elif method.lower() == 'pca':
         # Initialize PCA with any passed kwargs
         reduction_init = PCA(n_components=n_components, **kwargs)
