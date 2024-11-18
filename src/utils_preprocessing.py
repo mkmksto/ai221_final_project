@@ -6,11 +6,15 @@ Also includes some feature extraction methods.
 
 import cv2
 import matplotlib.pyplot as plt
+import networkx as nx
 import numpy as np
 import pandas as pd
 import scipy
 import scipy.stats
+from scipy.ndimage import label
 from skimage.feature import graycomatrix, graycoprops, local_binary_pattern
+from skimage.filters import frangi, gabor
+from skimage.morphology import skeletonize, thin
 from sklearn.cluster import KMeans
 
 from .utils_data import RAW_DATA_DF
@@ -398,13 +402,103 @@ def extract_color_features(image: np.ndarray) -> dict[str, float]:
 
 
 def extract_vein_features(image: np.ndarray) -> dict[str, float]:
-    """Extract vein features from preprocessed leaf image:
-    - Vein density
-    - Vein orientation histogram
-    - Vein branching points
-    - Vein length statistics
+    """Extract vein features from preprocessed leaf image.
+
+    This function analyzes the vein structure of a leaf using various image processing
+    techniques including Frangi vesselness filter and skeletonization.
+
+    Args:
+        image: np.ndarray
+            Input image as numpy array, either RGB or grayscale
+
+    Returns:
+        dict[str, float]: Dictionary containing vein features:
+            - vein_density: Ratio of vein pixels to total pixels
+            - mean_orientation: Mean orientation of vein segments
+            - orientation_std: Standard deviation of vein orientations
+            - branching_density: Density of branching points
+            - mean_segment_length: Average length of vein segments
+            - segment_length_std: Standard deviation of segment lengths
+            - vesselness_mean: Mean vesselness response
+            - vesselness_std: Standard deviation of vesselness response
     """
-    pass
+    # Convert to grayscale if needed
+    if len(image.shape) == 3:
+        gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    else:
+        gray = image.copy()
+
+    # Apply Frangi vesselness filter to enhance veins
+    vesselness = frangi(
+        gray, scale_range=(1, 5), scale_step=1, beta=0.5, black_ridges=False
+    )
+
+    # Normalize vesselness response
+    vesselness = (vesselness - vesselness.min()) / (
+        vesselness.max() - vesselness.min() + 1e-8
+    )
+
+    # Threshold vesselness to get binary vein mask
+    vein_mask = vesselness > 0.1
+
+    # Skeletonize the vein mask
+    skeleton = skeletonize(vein_mask)
+
+    # Calculate vein density
+    vein_density = float(np.sum(skeleton) / skeleton.size)
+
+    # Calculate vesselness statistics
+    vesselness_mean = float(np.mean(vesselness))
+    vesselness_std = float(np.std(vesselness))
+
+    # Find branching points using connected components
+    # Get points with more than 2 neighbors
+    kernel = np.ones((3, 3), dtype=np.uint8)
+    neighbors = cv2.filter2D(skeleton.astype(np.float32), -1, kernel)
+    branch_points = (neighbors > 3) & skeleton
+    branching_density = float(np.sum(branch_points) / skeleton.size)
+
+    # Calculate segment orientations using Gabor filter bank
+    orientations = []
+    for theta in np.linspace(0, np.pi, 8):
+        real, _ = gabor(gray, frequency=0.6, theta=theta)
+        response = np.sum(real * skeleton)
+        orientations.append((theta, response))
+
+    # Get orientation statistics
+    orientation_responses = np.array([resp for _, resp in orientations])
+    weighted_orientations = np.array([theta for theta, _ in orientations])
+    mean_orientation = float(
+        np.average(weighted_orientations, weights=orientation_responses)
+    )
+    orientation_std = float(np.std(weighted_orientations))
+
+    # Calculate segment lengths
+    # Label individual segments
+    labeled_skeleton, num_segments = label(skeleton)
+    segment_lengths = []
+
+    for i in range(1, num_segments + 1):
+        segment = labeled_skeleton == i
+        segment_lengths.append(np.sum(segment))
+
+    if segment_lengths:
+        mean_segment_length = float(np.mean(segment_lengths))
+        segment_length_std = float(np.std(segment_lengths))
+    else:
+        mean_segment_length = 0.0
+        segment_length_std = 0.0
+
+    return {
+        "vein_density": vein_density,
+        "mean_orientation": mean_orientation,
+        "orientation_std": orientation_std,
+        "branching_density": branching_density,
+        "mean_segment_length": mean_segment_length,
+        "segment_length_std": segment_length_std,
+        "vesselness_mean": vesselness_mean,
+        "vesselness_std": vesselness_std,
+    }
 
 
 def extract_all_features(image_path: str) -> dict[str, float]:
