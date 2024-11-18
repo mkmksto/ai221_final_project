@@ -8,7 +8,10 @@ import cv2
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+import scipy
+import scipy.stats
 from skimage.feature import graycomatrix, graycoprops, local_binary_pattern
+from sklearn.cluster import KMeans
 
 from .utils_data import RAW_DATA_DF
 
@@ -199,6 +202,7 @@ def preprocess_leaf_image(image: np.ndarray) -> np.ndarray:
     return image
 
 
+# TODO: not working as expected
 def extract_shape_features(image: np.ndarray) -> dict[str, float]:
     """Extract shape features from preprocessed leaf image.
 
@@ -331,14 +335,66 @@ def extract_texture_features(image: np.ndarray) -> dict[str, float]:
 
 
 def extract_color_features(image: np.ndarray) -> dict[str, float]:
-    """Extract color features from original leaf image:
-    - Color moments (mean, std, skewness)
-    - Color histograms
-    - Dominant colors
-    - Color ratios
-    For multiple color spaces (RGB, HSV, Lab)
+    """Extract color features from original leaf image.
+
+    Args:
+        image: np.ndarray
+            Input image in BGR format (OpenCV default)
+
+    Returns:
+        dict[str, float]: Dictionary containing color features:
+            - Color moments (mean, std, skewness) for each channel in RGB, HSV, Lab
+            - Color histogram features for each channel
+            - Dominant color ratios
+            - Color space ratios
     """
-    pass
+    # Convert to different color spaces
+    rgb_img = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+    hsv_img = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
+    lab_img = cv2.cvtColor(image, cv2.COLOR_BGR2LAB)
+
+    features = {}
+
+    # Extract color moments for each color space
+    for color_space, img in [("rgb", rgb_img), ("hsv", hsv_img), ("lab", lab_img)]:
+        for i, channel in enumerate(cv2.split(img)):
+            mean = float(np.mean(channel))
+            std = float(np.std(channel))
+            skewness = float(scipy.stats.skew(channel.ravel()))
+
+            features[f"{color_space}_{i}_mean"] = mean
+            features[f"{color_space}_{i}_std"] = std
+            features[f"{color_space}_{i}_skewness"] = skewness
+
+    # Calculate color histograms
+    for color_space, img in [("rgb", rgb_img), ("hsv", hsv_img), ("lab", lab_img)]:
+        for i, channel in enumerate(cv2.split(img)):
+            hist = cv2.calcHist([channel], [0], None, [32], [0, 256])
+            hist = hist.flatten() / hist.sum()
+
+            for j, val in enumerate(hist):
+                features[f"{color_space}_{i}_hist_{j}"] = float(val)
+
+    # Calculate dominant colors using k-means
+    pixels = rgb_img.reshape(-1, 3)
+    kmeans = KMeans(n_clusters=5, random_state=42).fit(pixels)
+    colors = kmeans.cluster_centers_
+    color_labels = kmeans.labels_
+
+    # Calculate ratios of dominant colors
+    unique_labels, counts = np.unique(color_labels, return_counts=True)
+    for label, count in zip(unique_labels, counts):
+        features[f"dominant_color_{label}_ratio"] = float(count / len(color_labels))
+
+    # Calculate color space ratios
+    features["green_ratio"] = float(
+        np.mean(rgb_img[:, :, 1])
+        / (np.mean(rgb_img[:, :, 0]) + np.mean(rgb_img[:, :, 2]) + 1e-7)
+    )
+    features["saturation_ratio"] = float(np.mean(hsv_img[:, :, 1]) / 255.0)
+    features["value_ratio"] = float(np.mean(hsv_img[:, :, 2]) / 255.0)
+
+    return features
 
 
 def extract_vein_features(image: np.ndarray) -> dict[str, float]:
