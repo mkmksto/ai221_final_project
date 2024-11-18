@@ -23,7 +23,6 @@ from skimage.filters import frangi, gabor
 from skimage.morphology import skeletonize, thin
 from sklearn.cluster import KMeans
 from tqdm import tqdm
-from transformers import pipeline
 
 from .utils_data import RAW_DATA_DF
 
@@ -214,8 +213,8 @@ def preprocess_leaf_image(image: np.ndarray) -> np.ndarray:
     return image
 
 
-def remove_background(pil_image: Image.Image) -> np.ndarray:
-    """Remove background from leaf image using rembg.
+def create_bg_rem_mask(pil_image: Image.Image) -> np.ndarray:
+    """Create a mask for background removal from leaf image using rembg.
 
     Args:
         pil_image: Input PIL image
@@ -275,7 +274,7 @@ def extract_shape_features(image: np.ndarray) -> dict[str, float]:
     pil_image = Image.fromarray(image)
 
     # Initialize background removal pipeline
-    mask_array = remove_background(pil_image)
+    mask_array = create_bg_rem_mask(pil_image)
 
     # Convert mask to binary
     binary_mask = (mask_array > 128).astype(np.uint8) * 255
@@ -338,130 +337,6 @@ def extract_shape_features(image: np.ndarray) -> dict[str, float]:
         "eccentricity": float(eccentricity),
         "solidity": float(solidity),
         "extent": float(extent),
-    }
-
-
-def extract_shape_features_old(image: np.ndarray) -> dict[str, float]:
-    """Extract shape features from preprocessed leaf image.
-
-    Args:
-        image: Input image as numpy array, either RGB or grayscale
-
-    Returns:
-        Dictionary containing shape features
-    """
-    # Convert to grayscale if needed
-    if len(image.shape) == 3:
-        gray = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
-    else:
-        gray = image
-
-    # Create mask to isolate leaf from background
-    # Use Otsu's method on blurred image for robust thresholding
-    blurred = cv2.GaussianBlur(gray, (5, 5), 0)
-    _, mask = cv2.threshold(blurred, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
-
-    # Clean up mask with morphological operations
-    kernel = np.ones((3, 3), np.uint8)
-    mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel)
-    mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel)
-
-    # Invert mask if background is white
-    if np.mean(gray[mask == 255]) > np.mean(gray[mask == 0]):
-        mask = cv2.bitwise_not(mask)
-
-    # Find contours on the mask
-    contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-    if not contours:
-        return {}
-
-    # Create visualization
-    fig, axes = plt.subplots(2, 2, figsize=(12, 12))
-
-    # Original image
-    axes[0, 0].imshow(
-        cv2.cvtColor(image, cv2.COLOR_BGR2RGB) if len(image.shape) == 3 else gray,
-        cmap="gray",
-    )
-    axes[0, 0].set_title("Original Image")
-    axes[0, 0].axis("off")
-
-    # Grayscale
-    axes[0, 1].imshow(gray, cmap="gray")
-    axes[0, 1].set_title("Grayscale")
-    axes[0, 1].axis("off")
-
-    # Binary mask
-    axes[1, 0].imshow(mask, cmap="gray")
-    axes[1, 0].set_title("Binary Mask")
-    axes[1, 0].axis("off")
-
-    # Contour overlay
-    result = (
-        image.copy()
-        if len(image.shape) == 3
-        else cv2.cvtColor(gray, cv2.COLOR_GRAY2BGR)
-    )
-    if contours:
-        cv2.drawContours(result, contours, -1, (0, 255, 0), 2)
-    axes[1, 1].imshow(cv2.cvtColor(result, cv2.COLOR_BGR2RGB))
-    axes[1, 1].set_title("Detected Contours")
-    axes[1, 1].axis("off")
-
-    plt.tight_layout()
-    plt.show()
-
-    # Get largest contour (the leaf)
-    cnt = max(contours, key=cv2.contourArea)
-
-    # Create a mask with just the leaf
-    leaf_mask = np.zeros_like(mask)
-    cv2.drawContours(leaf_mask, [cnt], -1, 255, -1)
-
-    # Basic measurements on the leaf contour
-    area = cv2.contourArea(cnt)
-    perimeter = cv2.arcLength(cnt, True)
-
-    # Bounding rectangle features
-    x, y, w, h = cv2.boundingRect(cnt)
-    aspect_ratio = float(w) / h if h > 0 else 1.0
-
-    # Minimum area rectangle for better extent calculation
-    rect = cv2.minAreaRect(cnt)
-    rect_area = rect[1][0] * rect[1][1]
-    extent = float(area) / rect_area if rect_area > 0 else 1.0
-
-    # Convex hull features
-    hull = cv2.convexHull(cnt)
-    hull_area = cv2.contourArea(hull)
-    solidity = float(area) / hull_area if hull_area > 0 else 1.0
-
-    # Form factor (circularity measure)
-    form_factor = 4 * np.pi * area / (perimeter * perimeter) if perimeter > 0 else 1.0
-
-    # Calculate compactness
-    compactness = float(perimeter * perimeter / (4 * np.pi * area)) if area > 0 else 1.0
-
-    # Calculate eccentricity using moments
-    moments = cv2.moments(cnt)
-    if moments["m00"] != 0:
-        mu20 = moments["mu20"] / moments["m00"]
-        mu02 = moments["mu02"] / moments["m00"]
-        mu11 = moments["mu11"] / moments["m00"]
-        temp = np.sqrt((mu20 - mu02) ** 2 + 4 * mu11**2)
-        eccentricity = float(np.sqrt(2 * temp / (mu20 + mu02 + temp)))
-    else:
-        eccentricity = 1.0
-
-    return {
-        "area": float(area),
-        "perimeter": float(perimeter),
-        "form_factor": float(form_factor),
-        "aspect_ratio": float(aspect_ratio),
-        "extent": float(extent),
-        "solidity": float(solidity),
-        "compactness": float(compactness),
-        "eccentricity": float(eccentricity),
     }
 
 
@@ -799,6 +674,135 @@ def create_feature_dataset(data_df: pd.DataFrame) -> pd.DataFrame:
     feature_df = feature_df[cols]
 
     return feature_df
+
+
+# -----------------------------------------------------------------------------
+# Old functions
+# -----------------------------------------------------------------------------
+
+
+def extract_shape_features_old(image: np.ndarray) -> dict[str, float]:
+    """Extract shape features from preprocessed leaf image.
+
+    Args:
+        image: Input image as numpy array, either RGB or grayscale
+
+    Returns:
+        Dictionary containing shape features
+    """
+    # Convert to grayscale if needed
+    if len(image.shape) == 3:
+        gray = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
+    else:
+        gray = image
+
+    # Create mask to isolate leaf from background
+    # Use Otsu's method on blurred image for robust thresholding
+    blurred = cv2.GaussianBlur(gray, (5, 5), 0)
+    _, mask = cv2.threshold(blurred, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+
+    # Clean up mask with morphological operations
+    kernel = np.ones((3, 3), np.uint8)
+    mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel)
+    mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel)
+
+    # Invert mask if background is white
+    if np.mean(gray[mask == 255]) > np.mean(gray[mask == 0]):
+        mask = cv2.bitwise_not(mask)
+
+    # Find contours on the mask
+    contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    if not contours:
+        return {}
+
+    # Create visualization
+    fig, axes = plt.subplots(2, 2, figsize=(12, 12))
+
+    # Original image
+    axes[0, 0].imshow(
+        cv2.cvtColor(image, cv2.COLOR_BGR2RGB) if len(image.shape) == 3 else gray,
+        cmap="gray",
+    )
+    axes[0, 0].set_title("Original Image")
+    axes[0, 0].axis("off")
+
+    # Grayscale
+    axes[0, 1].imshow(gray, cmap="gray")
+    axes[0, 1].set_title("Grayscale")
+    axes[0, 1].axis("off")
+
+    # Binary mask
+    axes[1, 0].imshow(mask, cmap="gray")
+    axes[1, 0].set_title("Binary Mask")
+    axes[1, 0].axis("off")
+
+    # Contour overlay
+    result = (
+        image.copy()
+        if len(image.shape) == 3
+        else cv2.cvtColor(gray, cv2.COLOR_GRAY2BGR)
+    )
+    if contours:
+        cv2.drawContours(result, contours, -1, (0, 255, 0), 2)
+    axes[1, 1].imshow(cv2.cvtColor(result, cv2.COLOR_BGR2RGB))
+    axes[1, 1].set_title("Detected Contours")
+    axes[1, 1].axis("off")
+
+    plt.tight_layout()
+    plt.show()
+
+    # Get largest contour (the leaf)
+    cnt = max(contours, key=cv2.contourArea)
+
+    # Create a mask with just the leaf
+    leaf_mask = np.zeros_like(mask)
+    cv2.drawContours(leaf_mask, [cnt], -1, 255, -1)
+
+    # Basic measurements on the leaf contour
+    area = cv2.contourArea(cnt)
+    perimeter = cv2.arcLength(cnt, True)
+
+    # Bounding rectangle features
+    x, y, w, h = cv2.boundingRect(cnt)
+    aspect_ratio = float(w) / h if h > 0 else 1.0
+
+    # Minimum area rectangle for better extent calculation
+    rect = cv2.minAreaRect(cnt)
+    rect_area = rect[1][0] * rect[1][1]
+    extent = float(area) / rect_area if rect_area > 0 else 1.0
+
+    # Convex hull features
+    hull = cv2.convexHull(cnt)
+    hull_area = cv2.contourArea(hull)
+    solidity = float(area) / hull_area if hull_area > 0 else 1.0
+
+    # Form factor (circularity measure)
+    form_factor = 4 * np.pi * area / (perimeter * perimeter) if perimeter > 0 else 1.0
+
+    # Calculate compactness
+    compactness = float(perimeter * perimeter / (4 * np.pi * area)) if area > 0 else 1.0
+
+    # Calculate eccentricity using moments
+    moments = cv2.moments(cnt)
+    if moments["m00"] != 0:
+        mu20 = moments["mu20"] / moments["m00"]
+        mu02 = moments["mu02"] / moments["m00"]
+        mu11 = moments["mu11"] / moments["m00"]
+        temp = np.sqrt((mu20 - mu02) ** 2 + 4 * mu11**2)
+        eccentricity = float(np.sqrt(2 * temp / (mu20 + mu02 + temp)))
+    else:
+        eccentricity = 1.0
+
+    return {
+        "area": float(area),
+        "perimeter": float(perimeter),
+        "form_factor": float(form_factor),
+        "aspect_ratio": float(aspect_ratio),
+        "extent": float(extent),
+        "solidity": float(solidity),
+        "compactness": float(compactness),
+        "eccentricity": float(eccentricity),
+    }
 
 
 if __name__ == "__main__":
