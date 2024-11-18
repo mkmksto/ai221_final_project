@@ -16,6 +16,7 @@ import pandas as pd
 import scipy
 import scipy.stats
 from PIL import Image
+from rembg import remove
 from scipy.ndimage import label
 from skimage.feature import graycomatrix, graycoprops, local_binary_pattern
 from skimage.filters import frangi, gabor
@@ -214,19 +215,38 @@ def preprocess_leaf_image(image: np.ndarray) -> np.ndarray:
 
 
 def remove_background(pil_image: Image.Image) -> np.ndarray:
-    """Remove background from a PIL image using a transformer model."""
-    pipe = pipeline(
-        "image-segmentation",
-        model="briaai/RMBG-1.4",
-        trust_remote_code=True,
-        device="cuda",
-    )
+    """Remove background from leaf image using rembg.
 
-    # Get mask from transformer
-    mask = pipe(pil_image, return_mask=True)
-    mask_array = np.array(mask)
+    Args:
+        pil_image: Input PIL image
 
-    return mask_array
+    Returns:
+        Mask array as numpy array where 0 represents background and 255 represents foreground
+    """
+    # Remove background using rembg
+    output = remove(pil_image)
+
+    # Convert to numpy array and extract alpha channel as mask
+    output_array = np.array(output)
+    mask = output_array[:, :, 3]  # Alpha channel
+
+    # Normalize mask to 0-255 range
+    mask = ((mask > 0) * 255).astype(np.uint8)
+
+    return mask
+
+    # pipe = pipeline(
+    #     "image-segmentation",
+    #     model="briaai/RMBG-1.4",
+    #     trust_remote_code=True,
+    #     device="cuda",
+    # )
+
+    # # Get mask from transformer
+    # mask = pipe(pil_image, return_mask=True)
+    # mask_array = np.array(mask)
+
+    # return mask_array
 
 
 def extract_shape_features(image: np.ndarray) -> dict[str, float]:
