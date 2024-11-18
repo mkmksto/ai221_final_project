@@ -15,12 +15,14 @@ import numpy as np
 import pandas as pd
 import scipy
 import scipy.stats
+from PIL import Image
 from scipy.ndimage import label
 from skimage.feature import graycomatrix, graycoprops, local_binary_pattern
 from skimage.filters import frangi, gabor
 from skimage.morphology import skeletonize, thin
 from sklearn.cluster import KMeans
 from tqdm import tqdm
+from transformers import pipeline
 
 from .utils_data import RAW_DATA_DF
 
@@ -212,6 +214,101 @@ def preprocess_leaf_image(image: np.ndarray) -> np.ndarray:
 
 
 def extract_shape_features(image: np.ndarray) -> dict[str, float]:
+    """Extract shape features from preprocessed leaf
+    use this for background removal: https://huggingface.co/briaai/RMBG-1.4
+    Loading the model works like this:
+    pipe = pipeline("image-segmentation", model="briaai/RMBG-1.4", trust_remote_code=True)
+    pillow_mask = pipe(image_path, return_mask = True) # outputs a pillow mask
+    pillow_image = pipe(image_path)
+    only use what's necessary from the transformer pipeline
+
+    Args:
+        image: np.ndarray
+            Input image as numpy array, either RGB or grayscale
+
+    Returns:
+        dict[str, float]: Dictionary containing shape features:
+            - area: Total leaf area in pixels
+            - perimeter: Length of leaf boundary in pixels
+            - circularity: How circular the leaf shape is (1=perfect circle)
+            - eccentricity: How elongated the leaf is
+            - solidity: Ratio of leaf area to convex hull area
+            - extent: Ratio of leaf area to bounding rect area
+    """
+    # Convert image to PIL format for transformer
+    pil_image = Image.fromarray(image)
+
+    # Initialize background removal pipeline
+    pipe = pipeline(
+        "image-segmentation",
+        model="briaai/RMBG-1.4",
+        trust_remote_code=True,
+        device="cuda",
+    )
+
+    # Get mask from transformer
+    mask = pipe(pil_image, return_mask=True)
+    mask_array = np.array(mask)
+
+    # Convert mask to binary
+    binary_mask = (mask_array > 128).astype(np.uint8) * 255
+
+    # Find contours
+    contours, _ = cv2.findContours(
+        binary_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE
+    )
+    if not contours:
+        return {}
+
+    # Get largest contour (main leaf)
+    contour = max(contours, key=cv2.contourArea)
+
+    # Calculate features
+    area = cv2.contourArea(contour)
+    perimeter = cv2.arcLength(contour, True)
+
+    # Circularity = 4*pi*area/perimeter^2 (1 for perfect circle)
+    circularity = (4 * np.pi * area) / (perimeter * perimeter) if perimeter > 0 else 0
+
+    # # Fit ellipse for eccentricity
+    # if len(contour) >= 5:
+    #     (_, _), (major, minor), _ = cv2.fitEllipse(contour)
+    #     eccentricity = np.sqrt(1 - (minor / major) ** 2) if major > 0 else 0
+    # else:
+    #     eccentricity = 0
+
+    # Calculate eccentricity using moments
+    moments = cv2.moments(contour)
+    if moments["m00"] != 0:
+        mu20 = moments["mu20"] / moments["m00"]
+        mu02 = moments["mu02"] / moments["m00"]
+        mu11 = moments["mu11"] / moments["m00"]
+        temp = np.sqrt((mu20 - mu02) ** 2 + 4 * mu11**2)
+        eccentricity = float(np.sqrt(2 * temp / (mu20 + mu02 + temp)))
+    else:
+        eccentricity = 1.0
+
+    # Calculate solidity
+    hull = cv2.convexHull(contour)
+    hull_area = cv2.contourArea(hull)
+    solidity = area / hull_area if hull_area > 0 else 0
+
+    # Calculate extent
+    x, y, w, h = cv2.boundingRect(contour)
+    rect_area = w * h
+    extent = area / rect_area if rect_area > 0 else 0
+
+    return {
+        "area": float(area),
+        "perimeter": float(perimeter),
+        "circularity": float(circularity),
+        "eccentricity": float(eccentricity),
+        "solidity": float(solidity),
+        "extent": float(extent),
+    }
+
+
+def extract_shape_features_old(image: np.ndarray) -> dict[str, float]:
     """Extract shape features from preprocessed leaf image.
 
     Args:
@@ -244,6 +341,42 @@ def extract_shape_features(image: np.ndarray) -> dict[str, float]:
     contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     if not contours:
         return {}
+
+    # Create visualization
+    fig, axes = plt.subplots(2, 2, figsize=(12, 12))
+
+    # Original image
+    axes[0, 0].imshow(
+        cv2.cvtColor(image, cv2.COLOR_BGR2RGB) if len(image.shape) == 3 else gray,
+        cmap="gray",
+    )
+    axes[0, 0].set_title("Original Image")
+    axes[0, 0].axis("off")
+
+    # Grayscale
+    axes[0, 1].imshow(gray, cmap="gray")
+    axes[0, 1].set_title("Grayscale")
+    axes[0, 1].axis("off")
+
+    # Binary mask
+    axes[1, 0].imshow(mask, cmap="gray")
+    axes[1, 0].set_title("Binary Mask")
+    axes[1, 0].axis("off")
+
+    # Contour overlay
+    result = (
+        image.copy()
+        if len(image.shape) == 3
+        else cv2.cvtColor(gray, cv2.COLOR_GRAY2BGR)
+    )
+    if contours:
+        cv2.drawContours(result, contours, -1, (0, 255, 0), 2)
+    axes[1, 1].imshow(cv2.cvtColor(result, cv2.COLOR_BGR2RGB))
+    axes[1, 1].set_title("Detected Contours")
+    axes[1, 1].axis("off")
+
+    plt.tight_layout()
+    plt.show()
 
     # Get largest contour (the leaf)
     cnt = max(contours, key=cv2.contourArea)
