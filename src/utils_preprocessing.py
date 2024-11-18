@@ -213,6 +213,22 @@ def preprocess_leaf_image(image: np.ndarray) -> np.ndarray:
     return image
 
 
+def remove_background(pil_image: Image.Image) -> np.ndarray:
+    """Remove background from a PIL image using a transformer model."""
+    pipe = pipeline(
+        "image-segmentation",
+        model="briaai/RMBG-1.4",
+        trust_remote_code=True,
+        device="cuda",
+    )
+
+    # Get mask from transformer
+    mask = pipe(pil_image, return_mask=True)
+    mask_array = np.array(mask)
+
+    return mask_array
+
+
 def extract_shape_features(image: np.ndarray) -> dict[str, float]:
     """Extract shape features from preprocessed leaf
     use this for background removal: https://huggingface.co/briaai/RMBG-1.4
@@ -239,19 +255,16 @@ def extract_shape_features(image: np.ndarray) -> dict[str, float]:
     pil_image = Image.fromarray(image)
 
     # Initialize background removal pipeline
-    pipe = pipeline(
-        "image-segmentation",
-        model="briaai/RMBG-1.4",
-        trust_remote_code=True,
-        device="cuda",
-    )
-
-    # Get mask from transformer
-    mask = pipe(pil_image, return_mask=True)
-    mask_array = np.array(mask)
+    mask_array = remove_background(pil_image)
 
     # Convert mask to binary
     binary_mask = (mask_array > 128).astype(np.uint8) * 255
+    # Visualize binary mask
+    plt.figure(figsize=(8, 8))
+    plt.imshow(binary_mask, cmap="gray")
+    plt.title("Binary Mask")
+    plt.axis("off")
+    plt.show()
 
     # Find contours
     contours, _ = cv2.findContours(
