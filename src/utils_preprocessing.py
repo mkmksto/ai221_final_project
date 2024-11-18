@@ -213,15 +213,18 @@ def preprocess_leaf_image(image: np.ndarray) -> np.ndarray:
     return image
 
 
-def create_bg_rem_mask(pil_image: Image.Image) -> np.ndarray:
+def create_bg_rem_mask(image: np.ndarray) -> np.ndarray:
     """Create a mask for background removal from leaf image using rembg.
 
     Args:
-        pil_image: Input PIL image
+        image: Input image as numpy array (RGB format)
 
     Returns:
         Mask array as numpy array where 0 represents background and 255 represents foreground
     """
+    # Convert numpy array to PIL Image
+    pil_image = Image.fromarray(image)
+
     # Remove background using rembg
     output = remove(pil_image)
 
@@ -234,56 +237,43 @@ def create_bg_rem_mask(pil_image: Image.Image) -> np.ndarray:
 
     return mask
 
-    # pipe = pipeline(
-    #     "image-segmentation",
-    #     model="briaai/RMBG-1.4",
-    #     trust_remote_code=True,
-    #     device="cuda",
-    # )
 
-    # # Get mask from transformer
-    # mask = pipe(pil_image, return_mask=True)
-    # mask_array = np.array(mask)
+def remove_background(image: np.ndarray, mask: np.ndarray) -> np.ndarray:
+    """Remove background from image using a binary mask.
 
-    # return mask_array
+    Args:
+        image: Input image as numpy array (RGB format)
+        mask: Binary mask where 0 represents background and 255 represents foreground
+
+    Returns:
+        Image with background removed (RGB format with transparent background)
+    """
+    # Ensure mask is binary
+    binary_mask = mask > 128
+
+    # Create output image with alpha channel
+    output = np.zeros((*image.shape[:2], 4), dtype=np.uint8)
+
+    # Copy RGB channels
+    output[:, :, :3] = image
+
+    # Set alpha channel from mask
+    output[:, :, 3] = binary_mask * 255
+
+    return output
 
 
 def extract_shape_features(image: np.ndarray) -> dict[str, float]:
-    """Extract shape features from preprocessed leaf
-    use this for background removal: https://huggingface.co/briaai/RMBG-1.4
-    Loading the model works like this:
-    pipe = pipeline("image-segmentation", model="briaai/RMBG-1.4", trust_remote_code=True)
-    pillow_mask = pipe(image_path, return_mask = True) # outputs a pillow mask
-    pillow_image = pipe(image_path)
-    only use what's necessary from the transformer pipeline
+    """Extract shape features from preprocessed leaf image with removed background.
 
     Args:
-        image: np.ndarray
-            Input image as numpy array, either RGB or grayscale
+        image: Input image as numpy array with removed background (RGBA format)
 
     Returns:
-        dict[str, float]: Dictionary containing shape features:
-            - area: Total leaf area in pixels
-            - perimeter: Length of leaf boundary in pixels
-            - circularity: How circular the leaf shape is (1=perfect circle)
-            - eccentricity: How elongated the leaf is
-            - solidity: Ratio of leaf area to convex hull area
-            - extent: Ratio of leaf area to bounding rect area
+        dict[str, float]: Dictionary containing shape features
     """
-    # Convert image to PIL format for transformer
-    pil_image = Image.fromarray(image)
-
-    # Initialize background removal pipeline
-    mask_array = create_bg_rem_mask(pil_image)
-
-    # Convert mask to binary
-    binary_mask = (mask_array > 128).astype(np.uint8) * 255
-    # Visualize binary mask
-    plt.figure(figsize=(8, 8))
-    plt.imshow(binary_mask, cmap="gray")
-    plt.title("Binary Mask")
-    plt.axis("off")
-    plt.show()
+    # Use alpha channel as mask
+    binary_mask = (image[:, :, 3] > 128).astype(np.uint8) * 255
 
     # Find contours
     contours, _ = cv2.findContours(
@@ -570,39 +560,41 @@ def extract_vein_features(image: np.ndarray) -> dict[str, float]:
     }
 
 
-# def extract_all_features(image_path: str) -> dict[str, float]:
 def extract_all_features(image_path: Path) -> dict[str, float]:
     """Extract all features from a leaf image.
 
-    This function loads an image, preprocesses it, and extracts all available features
-    including color, texture, shape, and vein features.
-
     Args:
-        image_path: str
-            Path to the image file
+        image_path: Path to the image file
 
     Returns:
-        dict[str, float]: Combined dictionary containing all features:
-            - Color features (color moments, histograms, dominant colors)
-            - Texture features (GLCM, LBP, edge density, roughness)
-            - Shape features (area, perimeter, form factor, etc.)
-            - Vein features (density, orientation, branching points)
+        dict[str, float]: Combined dictionary containing all features
     """
     # Read image
-    image = cv2.imread(image_path.as_posix())
+    image = plt.imread(image_path)  # This reads in RGB format
     if image is None:
         raise ValueError(f"Could not read image at {image_path}")
 
-    # Preprocess image
-    preprocessed_image = preprocess_leaf_image(image)
+    # Convert to uint8 if necessary (in case image is float)
+    if image.dtype == np.float32 or image.dtype == np.float64:
+        image = (image * 255).astype(np.uint8)
 
-    # Extract all feature types
-    color_features = extract_color_features(image)  # Use original image for color
-    texture_features = extract_texture_features(preprocessed_image)
-    shape_features = extract_shape_features(
-        preprocessed_image
-    )  # TODO: verify this actually works
-    vein_features = extract_vein_features(preprocessed_image)
+    # Preprocess image for enhancement
+    enhanced_image = preprocess_leaf_image(image)
+
+    # Create background removal mask
+    mask = create_bg_rem_mask(enhanced_image)
+
+    # Remove background
+    bg_removed_image = remove_background(enhanced_image, mask)
+
+    # Extract features
+    # Use original image for color features
+    color_features = extract_color_features(image)
+
+    # Use background-removed image for other features
+    texture_features = extract_texture_features(bg_removed_image)
+    shape_features = extract_shape_features(bg_removed_image)
+    vein_features = extract_vein_features(bg_removed_image)
 
     # Combine all features
     all_features = {
