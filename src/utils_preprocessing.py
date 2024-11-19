@@ -594,7 +594,10 @@ def extract_all_features(image_path: Path) -> dict[str, float]:
     # Use background-removed image for other features
     texture_features = extract_texture_features(bg_removed_image)
     shape_features = extract_shape_features(bg_removed_image)
-    vein_features = extract_vein_features(bg_removed_image)
+
+    # vein_features = extract_vein_features(bg_removed_image)
+    # better to use original image for vein features
+    vein_features = extract_vein_features(image)  # TODO: check this
 
     # Combine all features
     all_features = {
