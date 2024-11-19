@@ -27,58 +27,6 @@ from tqdm import tqdm
 from .utils_data import RAW_DATA_DF
 
 
-# Feature Extraction methods
-def extract_glcm_features(
-    image: np.ndarray,
-    distances: list[int] = [1],
-    angles: list[float] = [0, np.pi / 4, np.pi / 2, 3 * np.pi / 4],
-) -> dict[str, float]:
-    """Extract GLCM (Gray-Level Co-occurrence Matrix) features from an image.
-
-    Args:
-        image (np.ndarray): Input image
-        distances (list[int], optional): List of pixel pair distances. Defaults to [1].
-        angles (list[float], optional): List of pixel pair angles in radians.
-            Defaults to [0, pi/4, pi/2, 3*pi/4].
-
-    Returns:
-        dict[str, float]: Dictionary containing GLCM features:
-            - contrast: Measure of local intensity variation
-            - dissimilarity: Similar to contrast but increases linearly
-            - homogeneity: Closeness of elements distribution
-            - energy: Sum of squared elements (textural uniformity)
-            - correlation: Linear dependency of gray levels
-    """
-    # Convert to grayscale if needed
-    if len(image.shape) == 3:
-        image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-
-    # Normalize image to reduce number of intensity levels
-    bins = 8
-    image = (image / 256 * bins).astype(np.uint8)
-
-    # Calculate GLCM properties for each distance/angle
-    glcm = graycomatrix(
-        image,
-        distances=distances,
-        angles=angles,
-        levels=bins,
-        symmetric=True,
-        normed=True,
-    )
-
-    # Extract features
-    features = {
-        "contrast": graycoprops(glcm, "contrast").mean(),
-        "dissimilarity": graycoprops(glcm, "dissimilarity").mean(),
-        "homogeneity": graycoprops(glcm, "homogeneity").mean(),
-        "energy": graycoprops(glcm, "energy").mean(),
-        "correlation": graycoprops(glcm, "correlation").mean(),
-    }
-
-    return features
-
-
 def visualize_glcm(image: np.ndarray, distance: int = 1, angle: float = 0) -> None:
     """Visualize GLCM matrix for an image.
 
