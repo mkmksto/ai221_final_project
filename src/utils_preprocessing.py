@@ -143,13 +143,6 @@ def extract_shape_features(image: np.ndarray) -> dict[str, float]:
     # Circularity = 4*pi*area/perimeter^2 (1 for perfect circle)
     circularity = (4 * np.pi * area) / (perimeter * perimeter) if perimeter > 0 else 0
 
-    # # Fit ellipse for eccentricity
-    # if len(contour) >= 5:
-    #     (_, _), (major, minor), _ = cv2.fitEllipse(contour)
-    #     eccentricity = np.sqrt(1 - (minor / major) ** 2) if major > 0 else 0
-    # else:
-    #     eccentricity = 0
-
     # Calculate eccentricity using moments
     moments = cv2.moments(contour)
     if moments["m00"] != 0:
