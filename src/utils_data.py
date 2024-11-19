@@ -11,6 +11,7 @@ import pandas as pd
 DATA_FOLDER = Path(__file__).parent.parent / "data"
 RAW_DATA_FOLDER = DATA_FOLDER / "Philippine Medicinal Plant Leaf Dataset(raw)"
 PROCESSED_DATA_FOLDER = DATA_FOLDER / "ph_med_plants_reduced_sizes"
+BG_REMOVED_DATA_FOLDER = DATA_FOLDER / "bg_removed"
 
 HIBISCUS_RAW_FOLDER = RAW_DATA_FOLDER / "1Hibiscus rosa-sinensis(HRS)"
 CARMONA_RETUSA_RAW_FOLDER = RAW_DATA_FOLDER / "16Carmona retusa(CR)"
@@ -116,6 +117,18 @@ class_folders = [
 RAW_DATA_DF = pd.DataFrame(
     {
         "class_folder": class_folders,
+        "class_name": LIST_OF_FOLDER_CLASSES,
+        "class_number": range(1, len(LIST_OF_FOLDER_CLASSES) + 1),
+    }
+)
+
+removed_bg_class_folders = [
+    BG_REMOVED_DATA_FOLDER / folder_class for folder_class in LIST_OF_FOLDER_CLASSES
+]
+
+REMOVED_BG_DATA_DF = pd.DataFrame(
+    {
+        "class_folder": removed_bg_class_folders,
         "class_name": LIST_OF_FOLDER_CLASSES,
         "class_number": range(1, len(LIST_OF_FOLDER_CLASSES) + 1),
     }
