@@ -134,6 +134,15 @@ REMOVED_BG_DATA_DF = pd.DataFrame(
     }
 )
 
+ORIGINAL_AND_BG_REMOVED_DATA_DF = pd.DataFrame(
+    {
+        "original_image_path": class_folders,
+        "bg_removed_image_path": removed_bg_class_folders,
+        "class_name": LIST_OF_FOLDER_CLASSES,
+        "class_number": range(1, len(LIST_OF_FOLDER_CLASSES) + 1),
+    }
+)
+
 
 def plot_random_raw_images_grid(class_folders_list: list) -> None:
     """Plot one random image from each class in a grid layout.
