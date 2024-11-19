@@ -12,6 +12,7 @@ DATA_FOLDER = Path(__file__).parent.parent / "data"
 RAW_DATA_FOLDER = DATA_FOLDER / "Philippine Medicinal Plant Leaf Dataset(raw)"
 PROCESSED_DATA_FOLDER = DATA_FOLDER / "ph_med_plants_reduced_sizes"
 BG_REMOVED_DATA_FOLDER = DATA_FOLDER / "bg_removed"
+FEATURE_DATA_FOLDER = DATA_FOLDER / "feature_extraction"
 
 HIBISCUS_RAW_FOLDER = RAW_DATA_FOLDER / "1Hibiscus rosa-sinensis(HRS)"
 CARMONA_RETUSA_RAW_FOLDER = RAW_DATA_FOLDER / "16Carmona retusa(CR)"
