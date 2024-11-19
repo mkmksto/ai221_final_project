@@ -593,10 +593,6 @@ def extract_all_features(
     texture_features = extract_texture_features(bg_removed_image)
     shape_features = extract_shape_features(bg_removed_image)
 
-    # vein_features = extract_vein_features(bg_removed_image)
-    # better to use original image for vein features
-    vein_features = extract_vein_features(image)  # TODO: check this
-
     # Combine all features
     all_features = {
         **color_features,
@@ -616,55 +612,85 @@ def create_feature_dataset(data_df: pd.DataFrame) -> pd.DataFrame:
 
     Args:
         data_df: pd.DataFrame
-            DataFrame containing image paths and labels
-            Must have columns: ['image_path', 'class_number']
+            DataFrame containing folder paths and labels
+            Must have columns: ['original_image_path', 'bg_removed_image_path',
+                              'class_name', 'class_number']
+            where *_image_path columns contain paths to folders with .webp images
 
     Returns:
         pd.DataFrame: DataFrame containing:
             - image_filename: str (basename of the image file)
+            - class_name: str (name of the class)
+            - class_number: int (numeric label)
             - feature columns: float (all extracted features)
-            - class_number: int (label)
 
     Raises:
         ValueError: If required columns are missing from data_df
     """
     # Verify required columns exist
-    required_cols = ["image_path", "class_number"]
+    required_cols = [
+        "original_image_path",
+        "bg_removed_image_path",
+        "class_name",
+        "class_number",
+    ]
     if not all(col in data_df.columns for col in required_cols):
         raise ValueError(f"data_df must contain columns: {required_cols}")
 
     # Initialize lists to store results
     all_features: list[Dict[str, Union[str, float, int]]] = []
 
-    # Process each image with progress bar
-    for _, row in tqdm(
-        data_df.iterrows(), total=len(data_df), desc="Extracting features"
+    # Process each class folder
+    for idx, row in tqdm(
+        data_df.iterrows(), total=len(data_df), desc="Processing classes"
     ):
-        try:
-            # Extract features
-            features = extract_all_features(row["image_path"])
+        print(f"processing folder class: {row['class_name']}")
+        # # do not delete this
+        # if idx >= 3:
+        #     break
 
-            # Add image filename and class
-            features["image_filename"] = os.path.basename(row["image_path"])
-            features["class_number"] = row["class_number"]
+        original_folder = Path(row["original_image_path"])
+        bg_removed_folder = Path(row["bg_removed_image_path"])
 
-            all_features.append(features)
+        # Get all .webp files in original folder
+        original_images = list(original_folder.glob("*.webp"))
 
-        except Exception as e:
-            print(f"Error processing {row['image_path']}: {str(e)}")
-            continue
+        # Process each image in the class
+        for orig_img_path in original_images:
+            try:
+                # Construct path to corresponding bg-removed image
+                bg_removed_img_path = bg_removed_folder / orig_img_path.name
+
+                if not bg_removed_img_path.exists():
+                    print(
+                        f"Warning: No matching bg-removed image for "
+                        f"{orig_img_path.name}"
+                    )
+                    continue
+
+                # Extract features using both image paths
+                features = extract_all_features(orig_img_path, bg_removed_img_path)
+
+                # Add metadata
+                features["image_filename"] = orig_img_path.name
+                features["class_name"] = row["class_name"]
+                features["class_number"] = row["class_number"]
+
+                all_features.append(features)
+
+            except Exception as e:
+                print(f"Error processing {orig_img_path}: {str(e)}")
+                print(f"Error traceback: {str(e)}")
+                continue
 
     # Create DataFrame from all features
     feature_df = pd.DataFrame(all_features)
 
     # Ensure consistent column ordering
-    # Move image_filename and class_number to front
-    cols = ["image_filename", "class_number"] + [
-        col
-        for col in feature_df.columns
-        if col not in ["image_filename", "class_number"]
-    ]
-    feature_df = feature_df[cols]
+    # Move metadata columns to front
+    metadata_cols = ["image_filename", "class_name", "class_number"]
+    feature_cols = [col for col in feature_df.columns if col not in metadata_cols]
+    feature_df = feature_df[metadata_cols + feature_cols]
 
     return feature_df
 
