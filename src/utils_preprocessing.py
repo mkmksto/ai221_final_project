@@ -560,38 +560,36 @@ def extract_vein_features(image: np.ndarray) -> dict[str, float]:
     }
 
 
-def extract_all_features(image_path: Path) -> dict[str, float]:
+def extract_all_features(
+    original_image_path: Path, bg_removed_image_path: Path
+) -> dict[str, float]:
     """Extract all features from a leaf image.
 
     Args:
-        image_path: Path to the image file
+        original_image_path: Path
+            Path to the original image file
+        bg_removed_image_path: Path
+            Path to the image file with background removed
 
     Returns:
         dict[str, float]: Combined dictionary containing all features
     """
-    # Read image
-    image = plt.imread(image_path)  # This reads in RGB format
-    if image is None:
-        raise ValueError(f"Could not read image at {image_path}")
+    # Load images
+    original_image = plt.imread(original_image_path)
+    bg_removed_image = plt.imread(bg_removed_image_path)
 
-    # Convert to uint8 if necessary (in case image is float)
-    if image.dtype == np.float32 or image.dtype == np.float64:
-        image = (image * 255).astype(np.uint8)
+    # Convert to uint8 if necessary
+    if original_image.dtype == np.float32 or original_image.dtype == np.float64:
+        original_image = (original_image * 255).astype(np.uint8)
+    if bg_removed_image.dtype == np.float32 or bg_removed_image.dtype == np.float64:
+        bg_removed_image = (bg_removed_image * 255).astype(np.uint8)
 
-    # Preprocess image for enhancement
-    enhanced_image = preprocess_leaf_image(image)
+    # Extract features using appropriate image versions
+    # Use original image for color features and vein features
+    color_features = extract_color_features(original_image)
+    vein_features = extract_vein_features(original_image)
 
-    # Create background removal mask
-    mask = create_bg_rem_mask(enhanced_image)
-
-    # Remove background
-    bg_removed_image = remove_background(enhanced_image, mask)
-
-    # Extract features
-    # Use original image for color features
-    color_features = extract_color_features(image)
-
-    # Use background-removed image for other features
+    # Use background-removed image for texture and shape features
     texture_features = extract_texture_features(bg_removed_image)
     shape_features = extract_shape_features(bg_removed_image)
 
