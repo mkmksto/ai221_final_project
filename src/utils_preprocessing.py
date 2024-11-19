@@ -27,47 +27,6 @@ from tqdm import tqdm
 from .utils_data import RAW_DATA_DF
 
 
-def visualize_glcm(image: np.ndarray, distance: int = 1, angle: float = 0) -> None:
-    """Visualize GLCM matrix for an image.
-
-    Args:
-        image (np.ndarray): Input image
-        distance (int, optional): Pixel pair distance. Defaults to 1.
-        angle (float, optional): Pixel pair angle in radians. Defaults to 0.
-    """
-    # Convert to grayscale if needed
-    if len(image.shape) == 3:
-        image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-
-    # Normalize image to reduce number of intensity levels
-    bins = 8
-    image = (image / 256 * bins).astype(np.uint8)
-
-    # Calculate GLCM
-    glcm = graycomatrix(
-        image,
-        distances=[distance],
-        angles=[angle],
-        levels=bins,
-        symmetric=True,
-        normed=True,
-    )
-
-    # Plot original image and GLCM
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 5))
-
-    ax1.imshow(image, cmap="gray")
-    ax1.set_title("Original Image")
-    ax1.axis("off")
-
-    im = ax2.imshow(glcm[:, :, 0, 0], cmap="viridis")
-    ax2.set_title(f"GLCM (d={distance}, θ={angle:.2f})")
-    plt.colorbar(im, ax=ax2)
-
-    plt.tight_layout()
-    plt.show()
-
-
 def preprocess_leaf_image(image: np.ndarray) -> np.ndarray:
     """Preprocess leaf image with basic enhancements.
 
