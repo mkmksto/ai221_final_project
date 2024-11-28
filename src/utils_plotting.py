@@ -5,7 +5,10 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import numpy as np
 from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay, classification_report, roc_curve, roc_auc_score, accuracy_score
-
+from src.utils_classical import feature_reduction
+from typing import List, Union
+import pandas as pd
+import seaborn as sns
 
 def plot_5x8_grid(processed_images: list[np.ndarray]) -> None:
     """Plot preprocessed images in a 5x8 grid layout.
@@ -94,18 +97,85 @@ def plot_images_with_features(
         plt.show()
 
 
-def create_classification_report(y_test, y_pred, target_names, title):
-    # print classification report
+def create_classification_report(
+    y_test: Union[List, pd.Series],
+    y_pred: Union[List, pd.Series],
+    target_names: List[str],
+    title: str
+) -> None:
+    """
+    Generates and displays a classification report and a confusion matrix.
+
+    Parameters:
+        y_test (Union[List, pd.Series]): True labels for the test data.
+        y_pred (Union[List, pd.Series]): Predicted labels.
+        target_names (List[str]): Names of the target classes.
+        title (str): Title for the confusion matrix plot.
+
+    Returns:
+        None
+    """
+    # Print the classification report
     print(classification_report(y_test, y_pred, target_names=target_names))
 
+    # Generate the confusion matrix
     cfm = confusion_matrix(y_test, y_pred)
-    cm_display = ConfusionMatrixDisplay(confusion_matrix = cfm, display_labels = target_names)
 
-    plt.figure(figsize=(20, 20))  # Adjust the size as needed
-    cm_display.plot(cmap='viridis', ax=plt.gca())
-    plt.xticks(rotation=45, ha='right', fontsize=10)  # Rotate and adjust font size for readability
-    plt.yticks(fontsize=10)  # Adjust font size for readability
+    # Plot the confusion matrix
+    plt.figure(figsize=(10, 8))  # Adjusted the size for better visualization
+    sns.heatmap(cfm, annot=True, fmt="d", cmap="Blues", cbar=False)
+    plt.xticks(ticks=range(len(target_names)), labels=target_names, rotation=45, ha='right', fontsize=10)
+    plt.yticks(ticks=range(len(target_names)), labels=target_names, fontsize=10)
     plt.title(f"{title}: Confusion Matrix", fontsize=14, y=1.05)
-    plt.xlabel("Predicted label", fontsize=12)
-    plt.ylabel("True label", fontsize=12)
+    plt.xlabel("Predicted Label", fontsize=12)
+    plt.ylabel("True Label", fontsize=12)
+    plt.tight_layout()  # Adjust layout to avoid overlap
+    plt.show()
+
+
+def plot_tsne(X: pd.DataFrame, y: Union[List, pd.Series]) -> None:
+    """
+    Plots a t-SNE visualization of the given data.
+
+    Parameters:
+        X (pd.DataFrame): The feature set to reduce and visualize.
+        y (Union[List, pd.Series]): The target labels (can be a list or a pandas Series).
+
+    Returns:
+        None
+    """
+    # Perform dimensionality reduction using t-SNE
+    X, _, y, _ = feature_reduction(X, y, method='tsne', n_components=2, for_plotting=True)
+
+    # Plot the t-SNE visualization
+    plt.figure(figsize=(8, 6))
+    scatter = plt.scatter(X[:, 0], X[:, 1], c=y, cmap='tab20', s=10)
+    plt.colorbar(scatter, label='Class')
+    plt.title("t-SNE Visualization of True Labels")
+    plt.xlabel("t-SNE Component 1")
+    plt.ylabel("t-SNE Component 2")
+    plt.show()
+
+
+def plot_umap(X: pd.DataFrame, y: Union[List, pd.Series]) -> None:
+    """
+    Plots a UMAP visualization of the given data.
+
+    Parameters:
+        X (pd.DataFrame): The feature set to reduce and visualize.
+        y (Union[List, pd.Series]): The target labels (can be a list or a pandas Series).
+
+    Returns:
+        None
+    """
+    # Perform dimensionality reduction using UMAP
+    X, _, y, _ = feature_reduction(X, y, method='umap', n_components=2, for_plotting=True)
+
+    # Plot the t-SNE visualization
+    plt.figure(figsize=(8, 6))
+    scatter = plt.scatter(X[:, 0], X[:, 1], c=y, cmap='tab20', s=10)
+    plt.colorbar(scatter, label='Class')
+    plt.title("UMAP Visualization of True Labels")
+    plt.xlabel("UMAP Component 1")
+    plt.ylabel("UMAP Component 2")
     plt.show()
