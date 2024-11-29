@@ -1,12 +1,12 @@
 from sklearn.decomposition import PCA
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis as LDA
 from sklearn.manifold import TSNE
-from sklearn.model_selection import cross_val_score
-from sklearn.model_selection import train_test_split
+from sklearn.metrics import accuracy_score
+from sklearn.model_selection import cross_val_score, train_test_split
+from sklearn.pipeline import Pipeline
 from typing import List, Tuple, Union
 import pandas as pd
 import umap
-from sklearn.pipeline import Pipeline
 
 
 def feature_reduction(
@@ -88,9 +88,7 @@ def generate_objective(X_train, y_train, model, search_space, scoring="accuracy"
     """
     def objective(trial):
         # Dynamically suggest parameters based on the search space
-        params = {}
-        for param_name, suggest_fn in search_space.items():
-            params[param_name] = suggest_fn(trial)
+        params = {key: trial.suggest_categorical(key, values) if isinstance(values, list) else trial.suggest_float(key, *values) for key, values in search_space.items()}
         
         if isinstance(model, Pipeline):
             model['classifier'].set_params(**params)
@@ -102,3 +100,31 @@ def generate_objective(X_train, y_train, model, search_space, scoring="accuracy"
         return scores.mean()
 
     return objective
+
+def compare_classification_models(X, y, models, cv=5):
+    """
+    Compares different classification models on the given dataset.
+    
+    Parameters:
+    - X: Features (e.g., reduced-dimension data from an autoencoder).
+    - y: Target labels.
+    - models: A dictionary of model names as keys and instantiated classifiers as values.
+    - cv: Number of cross-validation folds (default=5).
+    
+    Returns:
+    - A DataFrame with model names and their mean cross-validated accuracy.
+    """
+    results = []
+    
+    for model_name, model in models.items():
+        # Perform cross-validation
+        scores = cross_val_score(model, X, y, cv=cv, scoring='accuracy')
+        mean_accuracy = scores.mean()
+        results.append({'Model': model_name, 'Accuracy': mean_accuracy})
+        print(f"Completed {model_name}: Mean Accuracy = {mean_accuracy:.4f}")
+    
+    # Create a DataFrame to display the results
+    results_df = pd.DataFrame(results)
+    results_df = results_df.sort_values(by='Accuracy', ascending=False).reset_index(drop=True)
+    
+    return results_df
