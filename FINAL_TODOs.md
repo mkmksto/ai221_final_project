@@ -40,7 +40,7 @@ Metrics: Classification Report (Accuracy, Precision, Recall, F1 Score)
 - Table Comparing all the models (hyperparam optimized)
 - Table Comparing all the models (dim reduction only)
 
-## Figures
+## Figures (for the top 3 best performing models)
 
 - [ ] Confusion Matrix
 - [ ] t-SNE Plot
