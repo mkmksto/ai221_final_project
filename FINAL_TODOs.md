@@ -61,3 +61,19 @@ Metrics: Classification Report (Accuracy, Precision, Recall, F1 Score)
   - [ ] Other preprocessing steps
   - [ ] Feature Extraction
   - [ ] Model Inference
+
+## Slides
+
+- [ ] Match the structure of the paper
+
+## Paper
+
+- 2 parts: Executive Summary (2 pages) and Supporting Details (any number of pages)
+
+## Graphical Abstract
+
+- [ ] To be done in figma or photoshop
+- [ ] Data Preparation Pipeline
+- [ ] Training Pipeline
+- [ ] Inference Pipeline
+- [ ] Performance Metrics
