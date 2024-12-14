@@ -6,12 +6,12 @@
 
 ### ML models (raw, without hyperparam optimization)
 
-- [ ] autosklearn
+- [x] autosklearn (best performing model: SVM/SVC)
 - [x] SVM (https://github.com/mkmksto/ai221_final_project/blob/main/notebooks/cantor_training.ipynb)
 - [x] XGBoost
-- [ ] Random Forest
-- [ ] K-Nearest Neighbors
-- [ ] MLP
+- [x] Random Forest (0.97)
+- [x] K-Nearest Neighbors (0.969)
+- [x] MLP (0.91)
 
 ### ML Models with dim reduction (e.g. Autoencoder)
 
@@ -35,6 +35,7 @@ Only perform on maybe the top 3 best models from the previous section
 ## Tables
 
 Metrics: Classification Report (Accuracy, Precision, Recall, F1 Score)
+Note: only use accuracy for most models, only add the classification report for the top 3 best performing models with hyperparam tuning
 
 - Table Comparing all the models (raw, with and without dim reduction)
 - Table Comparing all the models (hyperparam optimized)
