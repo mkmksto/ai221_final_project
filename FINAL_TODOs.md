@@ -6,7 +6,7 @@
 
 ### ML models (raw, without hyperparam optimization)
 
-- [x] autosklearn (best performing model: SVM/SVC)
+- [x] autosklearn (best performing model: SVM/SVC, accuracy: 0.98)
 - [x] SVM (https://github.com/mkmksto/ai221_final_project/blob/main/notebooks/cantor_training.ipynb)
 - [x] XGBoost
 - [x] Random Forest (0.97)
