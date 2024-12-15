@@ -79,3 +79,4 @@ Note: only use accuracy for most models, only add the classification report for 
 - [x] Training Pipeline
 - [x] Inference Pipeline
 - [ ] Performance Metrics
+- [ ] Additional: PFI
