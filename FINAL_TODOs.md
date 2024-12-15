@@ -23,14 +23,15 @@ Only perform on maybe the top 3 best models from the previous section
 - [x] Logistic Regression + AE
 - [x] Random Forest + AE (https://github.com/mkmksto/ai221_final_project/blob/main/notebooks/cantor_training_autoencoder.ipynb)
 - [x] Decision Trees + AE
-- [ ] XGBoost + PCA/LDA/AE
+- [x] XGBoost + LDA (0.949)
+- [x] XGBoost + AE (0.916)
 
 ### Hyperparam optimized models
 
 - [x] SVM + AE + Optuna
 - [x] KNN + AE + Optuna
 - [x] MLP + AE + Optuna
-- [ ] XGBoost + AE + Optuna
+- [x] XGBoost + LDA + Optuna (0.959) (and 0.977 if no dim reduction)
 
 ## Tables
 
@@ -44,20 +45,20 @@ Note: only use accuracy for most models, only add the classification report for 
 ## Figures (for the top 3 best performing models)
 
 - [ ] Confusion Matrix
-- [ ] t-SNE Plot
-- [ ] UMAP Plot
+- [x] t-SNE Plot
+- [x] UMAP Plot
 
 ## Flowcharts
 
-- [ ] Data Preparation Pipeline
+- [x] Data Preparation Pipeline
   - [ ] Resizing and Conversion to webp
   - [ ] Background Removal
   - [ ] Feature Extraction
-- [ ] Training Pipeline
+- [x] Training Pipeline
   - [ ] Model Selection
   - [ ] With or without dim reduction
   - [ ] Hyperparam optimization
-- [ ] Inference Pipeline
+- [x] Inference Pipeline
   - [ ] BG removal and resizing
   - [ ] Other preprocessing steps
   - [ ] Feature Extraction
@@ -74,7 +75,7 @@ Note: only use accuracy for most models, only add the classification report for 
 ## Graphical Abstract
 
 - [ ] To be done in figma or photoshop
-- [ ] Data Preparation Pipeline
-- [ ] Training Pipeline
-- [ ] Inference Pipeline
+- [x] Data Preparation Pipeline
+- [x] Training Pipeline
+- [x] Inference Pipeline
 - [ ] Performance Metrics
