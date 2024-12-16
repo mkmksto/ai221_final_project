@@ -7,11 +7,11 @@
 ### ML models (raw, without hyperparam optimization)
 
 - [x] autosklearn (best performing model: SVM/SVC, accuracy: 0.98)
-- [x] SVM (https://github.com/mkmksto/ai221_final_project/blob/main/notebooks/cantor_training.ipynb)
-- [x] XGBoost
-- [x] Random Forest (0.97)
-- [x] K-Nearest Neighbors (0.969)
-- [x] MLP (0.91)
+- [x] SVM (https://github.com/mkmksto/ai221_final_project/blob/main/notebooks/cantor_training.ipynb) (0.95)
+- [x] XGBoost (0.97) (q training)
+- [x] Random Forest (0.97) (etc)
+- [x] K-Nearest Neighbors (0.91) (etc)
+- [x] MLP (0.969) (etc)
 
 ### ML Models with dim reduction (e.g. Autoencoder)
 
@@ -28,9 +28,9 @@ Only perform on maybe the top 3 best models from the previous section
 
 ### Hyperparam optimized models
 
-- [x] SVM + AE + Optuna
-- [x] KNN + AE + Optuna
-- [x] MLP + AE + Optuna
+- [x] SVM + AE + Optuna (accy: 0.97, precision: 0.97, recall: 0.97, f1: 0.97)
+- [x] KNN + AE + Optuna (accu: 0.955)
+- [x] MLP + AE + Optuna (accu: 0.958)
 - [x] XGBoost + LDA + Optuna (0.959) (and 0.977 if no dim reduction)
 
 ## Tables
