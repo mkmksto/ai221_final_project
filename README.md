@@ -1,4 +1,4 @@
-# Hello World 🙀🙀
+# AI 221 Final Project
 
 ## Dataset
 
